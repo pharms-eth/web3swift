@@ -4,14 +4,14 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
-
+import Foundation
 
 /// Providers abstraction for custom providers (websockets, other custom private key managers). At the moment should not be used.
 public protocol Web3Provider {
     func sendAsync(_ request: JSONRPCrequest) async throws -> JSONRPCresponse
     func sendAsync(_ requests: JSONRPCrequestBatch) async throws -> JSONRPCresponseBatch
+
     var network: Networks? {get set}
     var attachedKeystoreManager: KeystoreManager? {get set}
     var url: URL {get}
@@ -22,12 +22,13 @@ public protocol Web3Provider {
 public class Web3HttpProvider: Web3Provider {
     public var url: URL
     public var network: Networks?
-    public var attachedKeystoreManager: KeystoreManager? = nil
+    public var attachedKeystoreManager: KeystoreManager?
     public var session: URLSession = {() -> URLSession in
         let config = URLSessionConfiguration.default
         let urlSession = URLSession(configuration: config)
         return urlSession
     }()
+
     public init?(_ httpProviderURL: URL, network net: Networks? = nil, keystoreManager manager: KeystoreManager? = nil) async {
         do {
             guard httpProviderURL.scheme == "http" || httpProviderURL.scheme == "https" else {
@@ -36,11 +37,8 @@ public class Web3HttpProvider: Web3Provider {
             url = httpProviderURL
             if net == nil {
                 let request = JSONRPCRequestFabric.prepareRequest(.getNetwork, parameters: [])
-                let response: JSONRPCresponse = try await Web3HttpProvider.post(request, providerURL: httpProviderURL, session: session)
+                let response: JSONRPCresponse = try await Self.post(request, providerURL: httpProviderURL, session: session)
                 if response.error != nil {
-                    if response.message != nil {
-                        print(response.message!)
-                    }
                     return nil
                 }
                 guard let result: String = response.getValue(), let intNetworkNumber = Int(result) else {return nil}
@@ -81,8 +79,8 @@ public class Web3HttpProvider: Web3Provider {
 
         let parsedResponse = try JSONDecoder().decode(T.self, from: data)
 
-        if let response = parsedResponse as? JSONRPCresponse, response.error != nil {
-            throw Web3Error.nodeError(desc: "Received an error message from node\n" + String(describing: response.error!))
+        if let response = parsedResponse as? JSONRPCresponse, let resError = response.error {
+            throw Web3Error.nodeError(desc: "Received an error message from node\n" + String(describing: resError))
         }
         return parsedResponse
 
@@ -93,11 +91,11 @@ public class Web3HttpProvider: Web3Provider {
             throw Web3Error.nodeError(desc: "RPC method is nill")
         }
 
-        return try await Web3HttpProvider.post(request, providerURL: self.url, session: self.session)
+        return try await Self.post(request, providerURL: self.url, session: self.session)
     }
 
     public func sendAsync(_ requests: JSONRPCrequestBatch) async throws -> JSONRPCresponseBatch {
-        return try await Web3HttpProvider.post(requests, providerURL: self.url, session: self.session)
+        try await Self.post(requests, providerURL: self.url, session: self.session)
     }
 }
 

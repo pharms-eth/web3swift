@@ -4,12 +4,13 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
 import CryptoSwift
+import Foundation
 
 public typealias Web3Utils = Web3.Utils
 
+// swiftlint:disable nesting
 extension Web3 {
     /// Namespaced Utils functions. Are not bound to particular web3 instance, so capitalization matters.
     public struct Utils {
@@ -40,23 +41,21 @@ extension Web3.Utils {
         case Finney
 
         var decimals: Int {
-            get {
-                switch self {
-                case .eth:
-                    return 18
-                case .wei:
-                    return 0
-                case .Kwei:
-                    return 3
-                case .Mwei:
-                    return 6
-                case .Gwei:
-                    return 9
-                case .Microether:
-                    return 12
-                case .Finney:
-                    return 15
-                }
+            switch self {
+            case .eth:
+                return 18
+            case .wei:
+                return 0
+            case .Kwei:
+                return 3
+            case .Mwei:
+                return 6
+            case .Gwei:
+                return 9
+            case .Microether:
+                return 12
+            case .Finney:
+                return 15
             }
         }
     }
@@ -4881,7 +4880,7 @@ extension Web3.Utils {
 ]
 """
 
-    //function setAddr(bytes32 node, address addr)
+    // function setAddr(bytes32 node, address addr)
     public static var legacyResolverABI = """
 [
     {
@@ -5894,7 +5893,7 @@ extension Web3.Utils {
 
     /// Convert the private key (32 bytes of Data) to compressed (33 bytes) or non-compressed (65 bytes) public key.
     public static func privateToPublic(_ privateKey: Data, compressed: Bool = false) -> Data? {
-        guard let publicKey = SECP256K1.privateToPublic(privateKey:  privateKey, compressed: compressed) else {return nil}
+        guard let publicKey = SECP256K1.privateToPublic(privateKey: privateKey, compressed: compressed) else {return nil}
         return publicKey
     }
 
@@ -5908,13 +5907,13 @@ extension Web3.Utils {
             return publicToAddressData(decompressedKey)
         }
         var stipped = publicKey
-        if (stipped.count == 65) {
-            if (stipped[0] != 4) {
+        if stipped.count == 65 {
+            if stipped[0] != 4 {
                 return nil
             }
             stipped = stipped[1...64]
         }
-        if (stipped.count != 64) {
+        if stipped.count != 64 {
             return nil
         }
         let sha3 = stipped.sha3(.keccak256)
@@ -5983,13 +5982,13 @@ extension Web3.Utils {
         guard components.count == 1 || components.count == 2 else {return nil}
         let unitDecimals = decimals
         guard let beforeDecPoint = BigUInt(components[0], radix: 10) else {return nil}
-        var mainPart = beforeDecPoint*BigUInt(10).power(unitDecimals)
-        if (components.count == 2) {
+        var mainPart = beforeDecPoint * BigUInt(10).power(unitDecimals)
+        if components.count == 2 {
             let numDigits = components[1].count
             guard numDigits <= unitDecimals else {return nil}
             guard let afterDecPoint = BigUInt(components[1], radix: 10) else {return nil}
-            let extraPart = afterDecPoint*BigUInt(10).power(unitDecimals-numDigits)
-            mainPart = mainPart + extraPart
+            let extraPart = afterDecPoint * BigUInt(10).power(unitDecimals - numDigits)
+            mainPart += extraPart
         }
         return mainPart
     }
@@ -6030,7 +6029,7 @@ extension Web3.Utils {
     ///
     /// Returns nil of formatting is not possible to satisfy.
     public static func formatToEthereumUnits(_ bigNumber: BigUInt, toUnits: Web3.Utils.Units = .eth, decimals: Int = 4, decimalSeparator: String = ".", fallbackToScientific: Bool = false) -> String? {
-        return formatToPrecision(bigNumber, numberDecimals: toUnits.decimals, formattingDecimals: decimals, decimalSeparator: decimalSeparator, fallbackToScientific: fallbackToScientific)
+        formatToPrecision(bigNumber, numberDecimals: toUnits.decimals, formattingDecimals: decimals, decimalSeparator: decimalSeparator, fallbackToScientific: fallbackToScientific)
     }
 
     /// Formats a BigUInt object to String. The supplied number is first divided into integer and decimal part based on "numberDecimals",
@@ -6058,33 +6057,33 @@ extension Web3.Utils {
             } else if fallbackToScientific {
                 var firstDigit = 0
                 for char in fullPaddedRemainder {
-                    if (char == "0") {
-                        firstDigit = firstDigit + 1
+                    if char == "0" {
+                        firstDigit += 1
                     } else {
-                        let firstDecimalUnit = String(fullPaddedRemainder[firstDigit ..< firstDigit+1])
+                        let firstDecimalUnit = String(fullPaddedRemainder[firstDigit ..< firstDigit + 1])
                         var remainingDigits = ""
                         let numOfRemainingDecimals = fullPaddedRemainder.count - firstDigit - 1
                         if numOfRemainingDecimals <= 0 {
                             remainingDigits = ""
                         } else if numOfRemainingDecimals > formattingDecimals {
-                            let end = firstDigit+1+formattingDecimals > fullPaddedRemainder.count ? fullPaddedRemainder.count: firstDigit+1+formattingDecimals
-                            remainingDigits = String(fullPaddedRemainder[firstDigit+1 ..< end])
+                            let end = firstDigit + 1 + formattingDecimals > fullPaddedRemainder.count ? fullPaddedRemainder.count: firstDigit + 1 + formattingDecimals
+                            remainingDigits = String(fullPaddedRemainder[firstDigit + 1 ..< end])
                         } else {
-                            remainingDigits = String(fullPaddedRemainder[firstDigit+1 ..< fullPaddedRemainder.count])
+                            remainingDigits = String(fullPaddedRemainder[firstDigit + 1 ..< fullPaddedRemainder.count])
                         }
-                        if remainingDigits != "" {
+                        if !remainingDigits.isEmpty {
                             fullRemainder = firstDecimalUnit + decimalSeparator + remainingDigits
                         } else {
                             fullRemainder = firstDecimalUnit
                         }
-                        firstDigit = firstDigit + 1
+                        firstDigit += 1
                         break
                     }
                 }
                 return fullRemainder + "e-" + String(firstDigit)
             }
         }
-        if (toDecimals == 0) {
+        if toDecimals == 0 {
             return String(quotient)
         }
         return String(quotient) + decimalSeparator + remainderPadded
@@ -6094,7 +6093,7 @@ extension Web3.Utils {
     /// BE WARNED - changing a message will result in different Ethereum address, but not in error.
     ///
     /// Input parameters should be hex Strings.
-    static public func personalECRecover(_ personalMessage: String, signature: String) -> EthereumAddress? {
+    public static func personalECRecover(_ personalMessage: String, signature: String) -> EthereumAddress? {
         guard let data = Data.fromHex(personalMessage) else {return nil}
         guard let sig = Data.fromHex(signature) else {return nil}
         return Web3.Utils.personalECRecover(data, signature: sig)
@@ -6104,7 +6103,7 @@ extension Web3.Utils {
     /// BE WARNED - changing a message will result in different Ethereum address, but not in error.
     ///
     /// Input parameters should be Data objects.
-    static public func personalECRecover(_ personalMessage: Data, signature: Data) -> EthereumAddress? {
+    public static func personalECRecover(_ personalMessage: Data, signature: Data) -> EthereumAddress? {
         if signature.count != 65 { return nil}
         let rData = signature[0..<32].bytes
         let sData = signature[32..<64].bytes
@@ -6123,12 +6122,11 @@ extension Web3.Utils {
         return Web3.Utils.publicToAddress(publicKey)
     }
 
-
     /// Recover the Ethereum address from recoverable secp256k1 signature.
     /// Takes a hash of some message. What message is hashed should be checked by user separately.
     ///
     /// Input parameters should be Data objects.
-    static public func hashECRecover(hash: Data, signature: Data) -> EthereumAddress? {
+    public static func hashECRecover(hash: Data, signature: Data) -> EthereumAddress? {
         if signature.count != 65 { return nil}
         let rData = signature[0..<32].bytes
         let sData = signature[32..<64].bytes
@@ -6146,26 +6144,26 @@ extension Web3.Utils {
     }
 
     /// returns Ethereum variant of sha3 (keccak256) of data. Returns nil is data is empty
-    static public func keccak256(_ data: Data) -> Data? {
-        if data.count == 0 {return nil}
+    public static func keccak256(_ data: Data) -> Data? {
+        if data.isEmpty {return nil}
         return data.sha3(.keccak256)
     }
 
     /// returns Ethereum variant of sha3 (keccak256) of data. Returns nil is data is empty
-    static public func sha3(_ data: Data) -> Data? {
-        if data.count == 0 {return nil}
+    public static func sha3(_ data: Data) -> Data? {
+        if data.isEmpty {return nil}
         return data.sha3(.keccak256)
     }
 
     /// returns sha256 of data. Returns nil is data is empty
-    static public func sha256(_ data: Data) -> Data? {
-        if data.count == 0 {return nil}
+    public static func sha256(_ data: Data) -> Data? {
+        if data.isEmpty {return nil}
         return data.sha256()
     }
 
     /// Unmarshals a 65 byte recoverable EC signature into internal structure.
     static func unmarshalSignature(signatureData: Data) -> SECP256K1.UnmarshaledSignature? {
-        if (signatureData.count != 65) {return nil}
+        if signatureData.count != 65 {return nil}
         let bytes = signatureData.bytes
         let r = Array(bytes[0..<32])
         let s = Array(bytes[32..<64])
@@ -6190,14 +6188,14 @@ extension Web3.Utils {
     }
 
     public static func hexToData(_ string: String) -> Data? {
-        return Data.fromHex(string)
+        Data.fromHex(string)
     }
 
     public static func hexToBigUInt(_ string: String) -> BigUInt? {
-        return BigUInt(string.stripHexPrefix(), radix: 16)
+        BigUInt(string.stripHexPrefix(), radix: 16)
     }
 
     public static func randomBytes(length: Int) -> Data? {
-        return Data.randomBytes(length: length)
+        Data.randomBytes(length: length)
     }
 }

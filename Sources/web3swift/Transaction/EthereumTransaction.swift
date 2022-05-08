@@ -3,9 +3,8 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 //  Refactor to support EIP-2718 enveloping by Mark Loit 2022
-
-import Foundation
 import BigInt
+import Foundation
 
 /// Abstraction object for a transaction pulled from, or destined for the blockchain
 /// provides all the necessary functionality to encode/decode sign/verify transactions
@@ -21,50 +20,50 @@ public struct EthereumTransaction: CustomStringConvertible {
     // convenience accessors to the common envelope fields
     // everything else should come from getOpts/setOpts
     /// The type of the transacton being represented, see TransactionType enum
-    public var type: TransactionType { return envelope.type }
+    public var type: TransactionType { envelope.type }
     /// the unique nonce value for the transaction
     public var nonce: BigUInt {
-        get { return envelope.nonce }
+        get { envelope.nonce }
         set(nonce) { envelope.nonce = nonce }
     }
 
     /// The chainId of the blockchain the transaction belongs to
     public var chainID: BigUInt? {
-        get { return envelope.parameters.chainID }
+        get { envelope.parameters.chainID }
         set(newID) { envelope.parameters.chainID = newID }
     }
 
     /// the chain-native value of the transaction in Wei
     public var value: BigUInt {
-        get { return envelope.parameters.value ?? 0 }
+        get { envelope.parameters.value ?? 0 }
         set(newValue) { envelope.parameters.value = newValue }
     }
 
     /// the EthereumAddress object holding the destination address for the transaction
     public var to: EthereumAddress {
-        get { return envelope.to }
+        get { envelope.to }
         set(newValue) { envelope.to = newValue }
     }
 
     /// the payload data for the transaction
     public var data: Data {
-        get { return envelope.parameters.data ?? Data() }
+        get { envelope.parameters.data ?? Data() }
         set(newValue) { envelope.parameters.data = newValue }
     }
 
     // transaction type specific parameters should be accessed with EthereumParameters
     public var parameters: EthereumParameters {
-        get { return envelope.parameters }
+        get { envelope.parameters }
         set(val) { envelope.parameters = val }
     }
 
     // signature data is read-only
     /// signature v component (read only)
-    public var v: BigUInt { return envelope.v }
+    public var v: BigUInt { envelope.v }
     /// signature r component (read only)
-    public var r: BigUInt { return envelope.r }
+    public var r: BigUInt { envelope.r }
     /// signature s component (read only)
-    public var s: BigUInt { return envelope.s }
+    public var s: BigUInt { envelope.s }
 
     private init() { preconditionFailure("Memberwise not supported") } // disable the memberwise initializer
 
@@ -74,7 +73,7 @@ public struct EthereumTransaction: CustomStringConvertible {
         var toReturn = ""
         toReturn += "Transaction" + "\n"
         toReturn += String(describing: self.envelope)
-        toReturn += "sender: " + String(describing: self.sender?.address)  + "\n"
+        toReturn += "sender: " + String(describing: self.sender?.address) + "\n"
         toReturn += "hash: " + String(describing: self.hash?.toHexString().addHexPrefix()) + "\n"
         return toReturn
     }
@@ -148,10 +147,8 @@ public struct EthereumTransaction: CustomStringConvertible {
     /// if options specifies a type, and it is different from the current type the transaction will be migrated
     /// to the new type. migrating will invalidate any signature data
     public mutating func applyOptions(_ options: TransactionOptions) {
-        if options.type != nil && self.type != options.type {
-            // swiftlint:disable force_unwrapping
-            self.migrate(to: options.type!)
-            // swiftlint:enable force_unwrapping
+        if let optType = options.type, self.type != optType {
+            self.migrate(to: optType)
         }
         self.envelope.applyOptions(options)
     }
@@ -161,8 +158,7 @@ public struct EthereumTransaction: CustomStringConvertible {
     public mutating func migrate(to type: TransactionType) {
         if self.type == type { return }
 
-        let newEnvelope = EnvelopeFactory.createEnvelope(type: type, to: self.envelope.to,
-                                                         nonce: self.envelope.nonce, parameters: self.envelope.parameters)
+        let newEnvelope = EnvelopeFactory.createEnvelope(type: type, to: self.envelope.to, nonce: self.envelope.nonce, parameters: self.envelope.parameters)
         self.envelope = newEnvelope
     }
 
@@ -205,7 +201,7 @@ public struct EthereumTransaction: CustomStringConvertible {
 
     /// - Returns: a raw bytestream of the transaction, encoded according to the transactionType
     func encode(for type: EncodeType = .transaction) -> Data? {
-        return self.envelope.encode(for: type)
+        self.envelope.encode(for: type)
     }
 
     /// creates a Raw RPC request transaction for the given Transaction
@@ -250,9 +246,7 @@ extension EthereumTransaction {
     ///   - r: signature r parameter (default 0) - will get set properly once signed
     ///   - s: signature s parameter (default 0) - will get set properly once signed
     ///   - parameters: EthereumParameters object containing additional parametrs for the transaction like gas
-    public init(type: TransactionType? = nil, to: EthereumAddress, nonce: BigUInt = 0,
-                chainID: BigUInt? = nil, value: BigUInt? = nil, data: Data,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0, parameters: EthereumParameters? = nil) {
+    public init(type: TransactionType? = nil, to: EthereumAddress, nonce: BigUInt = 0, chainID: BigUInt? = nil, value: BigUInt? = nil, data: Data, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0, parameters: EthereumParameters? = nil) {
 
         var params = parameters ?? EthereumParameters()
 
@@ -269,20 +263,18 @@ extension EthereumTransaction {
     ///   - options: a TransactionOptions object containing additional options to apply to the transaction
     public init(with: AbstractEnvelope, options: TransactionOptions? = nil) {
         self.envelope = with
-        // swiftlint:disable force_unwrapping
-        if options != nil { self.envelope.applyOptions(options!) }
-        // swiftlint:enable force_unwrapping
+        if let opt = options {
+            self.envelope.applyOptions(opt)
+        }
     }
 }
 
 // Deprecated shims for the breaking changes
 extension EthereumTransaction {
     @available(*, deprecated, message: "Please use init(type:to:nonce:chainID:value:data:v:r:s:options:) instead")
-    public init(nonce: BigUInt = 0, gasPrice: BigUInt, gasLimit: BigUInt,
-                to: EthereumAddress, value: BigUInt = 0, data: Data, chainID: BigUInt? = nil,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
-
-        self.envelope = LegacyEnvelope( to: to, nonce: nonce,
+    public init(nonce: BigUInt = 0, gasPrice: BigUInt, gasLimit: BigUInt, to: EthereumAddress, value: BigUInt = 0, data: Data, chainID: BigUInt? = nil, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
+        // swiftlint:disable indentation_width
+        self.envelope = LegacyEnvelope(to: to, nonce: nonce,
                                         chainID: chainID, value: value, data: data,
                                         gasPrice: gasPrice, gasLimit: gasLimit,
                                         v: v, r: r, s: s)
@@ -436,7 +428,7 @@ extension EthereumTransaction {
 
     @available(*, deprecated, message: "use EthereumTransaction(rawValue:) instead")
     public static func fromRaw(_ rawData: Data) -> EthereumTransaction? {
-        return EthereumTransaction(rawValue: rawData)
+        EthereumTransaction(rawValue: rawData)
     }
 
     @available(*, deprecated, message: "use encode() instead")

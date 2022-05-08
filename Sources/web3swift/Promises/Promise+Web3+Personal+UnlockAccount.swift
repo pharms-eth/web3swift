@@ -4,11 +4,10 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
-
-extension web3.Personal {
+extension Web3.Personal {
     public func unlock(account: EthereumAddress, password: String = "web3swift", seconds: UInt64 = 300) async throws -> Bool {
         let addr = account.address
         return try await unlock(account: addr, password: password, seconds: seconds)
@@ -25,10 +24,7 @@ extension web3.Personal {
         let response = try await self.web3.dispatch(request)
 
         guard let value: Bool = response.getValue() else {
-            if response.error != nil {
-                throw Web3Error.nodeError(desc: response.error!.message)
-            }
-            throw Web3Error.nodeError(desc: "Invalid value from Ethereum node")
+            throw Web3Error.nodeError(desc: response.error?.message ?? "Invalid value from Ethereum node")
         }
         return value
 

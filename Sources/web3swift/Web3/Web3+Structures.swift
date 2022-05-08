@@ -4,8 +4,8 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 public struct TransactionDetails: Decodable {
     public var blockHash: Data?
@@ -84,9 +84,12 @@ extension TransactionReceipt {
 
         let status = try? container.decodeHex(BigUInt.self, forKey: .status)
         switch status {
-        case nil: self.status = .notYetProcessed
-        case 1: self.status = .ok
-        default: self.status = .failed
+        case nil:
+            self.status = .notYetProcessed
+        case 1:
+            self.status = .ok
+        default:
+            self.status = .failed
         }
 
         self.logs = try container.decode([EventLog].self, forKey: .logs)
@@ -202,11 +205,11 @@ public struct Block: Decodable {
     public var parentHash: Data
     public var nonce: Data? // MARK: This is optional in web3js but required in Ethereum JSON-RPC
     public var sha3Uncles: Data
-    public var logsBloom: EthereumBloomFilter? = nil // MARK: This is optional in web3js but required in Ethereum JSON-RPC
+    public var logsBloom: EthereumBloomFilter? // MARK: This is optional in web3js but required in Ethereum JSON-RPC
     public var transactionsRoot: Data
     public var stateRoot: Data
     public var receiptsRoot: Data
-    public var miner: EthereumAddress? = nil // MARK: This is NOT optional in web3js
+    public var miner: EthereumAddress? // MARK: This is NOT optional in web3js
     public var difficulty: BigUInt
     public var totalDifficulty: BigUInt
     public var extraData: Data
@@ -296,7 +299,7 @@ public struct EventParserResult: EventParserResultProtocol {
     public var transactionReceipt: TransactionReceipt?
     public var contractAddress: EthereumAddress
     public var decodedResult: [String: Any]
-    public var eventLog: EventLog? = nil
+    public var eventLog: EventLog?
 }
 
 public struct TransactionSendingResult {
@@ -364,13 +367,16 @@ public struct TxPoolContent: Decodable {
 
     fileprivate struct AdditionalDataCodingKeys: CodingKey {
         var stringValue: String
+
         init?(stringValue: String) {
             self.stringValue = stringValue
         }
 
         var intValue: Int?
+
         init?(intValue: Int) {
-            return nil
+            self.intValue = intValue
+            stringValue = "\(intValue)"
         }
     }
 }

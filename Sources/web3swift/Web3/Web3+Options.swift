@@ -4,8 +4,8 @@
 //
 // Additions to support new transaction types by Mark Loit March 2022
 
-import Foundation
 import BigInt
+import Foundation
 
 public protocol TransactionOptionsInheritable {
     var transactionOptions: TransactionOptions { get }
@@ -38,6 +38,7 @@ public struct TransactionOptions {
         case limited(BigUInt)
         case withMargin(Double)
     }
+
     public var gasLimit: GasLimitPolicy?
 
     public enum GasPricePolicy {
@@ -53,6 +54,7 @@ public struct TransactionOptions {
         case automatic
         case manual(BigUInt)
     }
+
     public var maxFeePerGas: FeePerGasPolicy?
     public var maxPriorityFeePerGas: FeePerGasPolicy?
 
@@ -178,7 +180,7 @@ public struct TransactionOptions {
     ///
     /// Returns default options if both parameters are nil.
     public static func merge(_ options: TransactionOptions?, with other: TransactionOptions?) -> TransactionOptions? {
-        var newOptions = TransactionOptions.defaultOptions // default has lowest priority
+        var newOptions = Self.defaultOptions // default has lowest priority
         newOptions = newOptions.merge(options)
         newOptions = newOptions.merge(other) // other has highest priority
         return newOptions
@@ -223,17 +225,15 @@ extension TransactionOptions: Decodable {
 
         self.chainID = try container.decodeHexIfPresent(BigUInt.self, forKey: .chainId)
 
-        let toString = try? container.decode(String.self, forKey: .to)
-        switch toString {
-        case nil, "0x", "0x0":
-            self.to = EthereumAddress.contractDeploymentAddress()
-        default:
-            // the forced unwrap here is safe as we trap nil in the previous case
-            // swiftlint:disable force_unwrapping
-            guard let ethAddr = EthereumAddress(toString!) else { throw Web3Error.dataError }
-            // swiftlint:enable force_unwrapping
-            self.to = ethAddr
+        let ethAddr: EthereumAddress
+        if let toString = try? container.decode(String.self, forKey: .to), toString != "0x" && toString != "0x0" {
+            guard let eAddr = EthereumAddress(toString) else { throw Web3Error.dataError }
+            ethAddr = eAddr
+        } else {
+            ethAddr = EthereumAddress.contractDeploymentAddress()
         }
+
+        self.to = ethAddr
 
         self.from = try container.decodeIfPresent(EthereumAddress.self, forKey: .to)
 

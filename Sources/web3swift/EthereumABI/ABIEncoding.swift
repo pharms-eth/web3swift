@@ -3,8 +3,8 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 public struct ABIEncoder { }
 
@@ -21,15 +21,7 @@ extension ABIEncoder {
                 return v.magnitude
             }
         case let v as String:
-            let base10 = BigUInt(v, radix: 10)
-            if base10 != nil {
-                return base10!
-            }
-            let base16 = BigUInt(v.stripHexPrefix(), radix: 16)
-            if base16 != nil {
-                return base16!
-            }
-            break
+            return BigUInt(v, radix: 10) ?? BigUInt(v.stripHexPrefix(), radix: 16)
         case let v as UInt:
             return BigUInt(v)
         case let v as UInt8:
@@ -53,7 +45,6 @@ extension ABIEncoder {
         default:
             return nil
         }
-        return nil
     }
 
     public static func convertToBigInt(_ value: AnyObject) -> BigInt? {
@@ -71,7 +62,6 @@ extension ABIEncoder {
             if base16 != nil {
                 return base16
             }
-            break
         case let v as UInt:
             return BigInt(v)
         case let v as UInt8:
@@ -132,9 +122,7 @@ extension ABIEncoder {
 
     public static func encode(types: [ABI.Element.InOut], values: [AnyObject]) -> Data? {
         guard types.count == values.count else {return nil}
-        let params = types.compactMap { (el) -> ABI.Element.ParameterType in
-            return el.type
-        }
+        let params = types.compactMap { $0.type }
         return encode(types: params, values: values)
     }
 
@@ -167,7 +155,7 @@ extension ABIEncoder {
                 guard let newHead = tailsPointer.abiEncode(bits: 256) else {return nil}
                 headsConcatenated.append(newHead)
                 tailsConcatenated.append(tail)
-                tailsPointer = tailsPointer + BigUInt(tail.count)
+                tailsPointer += BigUInt(tail.count)
             } else {
                 headsConcatenated.append(head)
                 tailsConcatenated.append(tail)
@@ -206,7 +194,7 @@ extension ABIEncoder {
             }
         case .bool:
             if let bool = value as? Bool {
-                if (bool) {
+                if bool {
                     return BigUInt(1).abiEncode(bits: 256)
                 } else {
                     return BigUInt(0).abiEncode(bits: 256)
@@ -221,25 +209,24 @@ extension ABIEncoder {
                 var dataGuess: Data?
                 if string.hasHexPrefix() {
                     dataGuess = Data.fromHex(string.lowercased().stripHexPrefix())
-                }
-                else {
+                } else {
                     dataGuess = string.data(using: .utf8)
                 }
                 guard let data = dataGuess else {break}
-                let minLength = ((data.count + 31) / 32)*32
+                let minLength = ((data.count + 31) / 32) * 32
                 guard let paddedData = data.setLengthRight(UInt64(minLength)) else {break}
                 let length = BigUInt(data.count)
                 guard let head = length.abiEncode(bits: 256) else {break}
-                let total = head+paddedData
+                let total = head + paddedData
                 return total
             }
         case .dynamicBytes:
             guard let data = convertToData(value) else {break}
-            let minLength = ((data.count + 31) / 32)*32
+            let minLength = ((data.count + 31) / 32) * 32
             guard let paddedData = data.setLengthRight(UInt64(minLength)) else {break}
             let length = BigUInt(data.count)
             guard let head = length.abiEncode(bits: 256) else {break}
-            let total = head+paddedData
+            let total = head + paddedData
             return total
         case .array(type: let subType, length: let length):
             switch type.arraySize {
@@ -282,13 +269,13 @@ extension ABIEncoder {
                             guard let newHead = tailsPointer.abiEncode(bits: 256) else {return nil}
                             headsConcatenated.append(newHead)
                             tailsConcatenated.append(tail)
-                            tailsPointer = tailsPointer + BigUInt(tail.count)
+                            tailsPointer += BigUInt(tail.count)
                         } else {
                             headsConcatenated.append(head)
                             tailsConcatenated.append(tail)
                         }
                     }
-                    let total =  lengthEncoding + headsConcatenated + tailsConcatenated
+                    let total = lengthEncoding + headsConcatenated + tailsConcatenated
                     //                    print("Dynamic array of dynamic types encoding :\n" + String(total.toHexString()))
                     return total
                 }
@@ -329,7 +316,7 @@ extension ABIEncoder {
                         guard let newHead = tailsPointer.abiEncode(bits: 256) else {return nil}
                         headsConcatenated.append(newHead)
                         tailsConcatenated.append(tail)
-                        tailsPointer = tailsPointer + BigUInt(tail.count)
+                        tailsPointer += BigUInt(tail.count)
                     }
                     let total = headsConcatenated + tailsConcatenated
                     //                    print("Static array of dynamic types encoding :\n" + String(total.toHexString()))
@@ -367,7 +354,7 @@ extension ABIEncoder {
                     guard let newHead = tailsPointer.abiEncode(bits: 256) else {return nil}
                     headsConcatenated.append(newHead)
                     tailsConcatenated.append(tail)
-                    tailsPointer = tailsPointer + BigUInt(tail.count)
+                    tailsPointer += BigUInt(tail.count)
                 } else {
                     headsConcatenated.append(head)
                     tailsConcatenated.append(tail)
@@ -387,6 +374,7 @@ extension ABIEncoder {
 // MARK: - SoliditySHA3 implementation based on web3js
 
 public extension ABIEncoder {
+    // swiftlint:disable indentation_width
     /**
      A convenience implementation of web3js [soliditySha3](https://web3js.readthedocs.io/en/v1.2.11/web3-utils.html?highlight=soliditySha3#soliditysha3)
      that is based on web3swift [`ABIEncoder`](https://github.com/skywinder/web3swift/blob/develop/Sources/web3swift/EthereumABI/ABIEncoding.swift ).
@@ -419,36 +407,36 @@ public extension ABIEncoder {
     }
 
     static func abiEncode(_ values: [Any]) throws -> Data {
-        return try values.map {
-            try abiEncode($0)
-        }.reduce(into: Data()) { partialResult, nextElement in
-            partialResult.append(nextElement)
-        }
+        try values
+            .map { try abiEncode($0)}
+            .reduce(into: Data()) { partialResult, nextElement in
+                partialResult.append(nextElement)
+            }
     }
 
     static func abiEncode(_ value: Any) throws -> Data {
         if let v = value as? Bool {
             return Data(v ? [0b1] : [0b0])
         } else if let v = value as? Int {
-            return ABIEncoder.convertToData(BigInt(exactly: v)?.abiEncode(bits: 256)! as AnyObject)!
+            return BigInt(exactly: v)?.abiEncode(bits: 256) ?? Data()
         } else if let v = value as? Int8 {
-            return ABIEncoder.convertToData(BigInt(exactly: v)?.abiEncode(bits: 8) as AnyObject)!
+            return BigInt(exactly: v)?.abiEncode(bits: 8) ?? Data()
         } else if let v = value as? Int16 {
-            return ABIEncoder.convertToData(BigInt(exactly: v)?.abiEncode(bits: 16)! as AnyObject)!
+            return BigInt(exactly: v)?.abiEncode(bits: 16) ?? Data()
         } else if let v = value as? Int32 {
-            return ABIEncoder.convertToData(BigInt(exactly: v)?.abiEncode(bits: 32)! as AnyObject)!
+            return BigInt(exactly: v)?.abiEncode(bits: 32) ?? Data()
         } else if let v = value as? Int64 {
-            return ABIEncoder.convertToData(BigInt(exactly: v)?.abiEncode(bits: 64)! as AnyObject)!
+            return BigInt(exactly: v)?.abiEncode(bits: 64) ?? Data()
         } else if let v = value as? UInt {
-            return ABIEncoder.convertToData(BigUInt(exactly: v)?.abiEncode(bits: 256)! as AnyObject)!
+            return BigUInt(exactly: v)?.abiEncode(bits: 256) ?? Data()
         } else if let v = value as? UInt8 {
-            return ABIEncoder.convertToData(BigUInt(exactly: v)?.abiEncode(bits: 8)! as AnyObject)!
+            return BigUInt(exactly: v)?.abiEncode(bits: 8) ?? Data()
         } else if let v = value as? UInt16 {
-            return ABIEncoder.convertToData(BigUInt(exactly: v)?.abiEncode(bits: 16)! as AnyObject)!
+            return BigUInt(exactly: v)?.abiEncode(bits: 16) ?? Data()
         } else if let v = value as? UInt32 {
-            return ABIEncoder.convertToData(BigUInt(exactly: v)?.abiEncode(bits: 32)! as AnyObject)!
+            return BigUInt(exactly: v)?.abiEncode(bits: 32) ?? Data()
         } else if let v = value as? UInt64 {
-            return ABIEncoder.convertToData(BigUInt(exactly: v)?.abiEncode(bits: 64)! as AnyObject)!
+            return BigUInt(exactly: v)?.abiEncode(bits: 64) ?? Data()
         } else if let data = ABIEncoder.convertToData(value as AnyObject) {
             return data
         }

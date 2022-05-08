@@ -69,7 +69,7 @@ open class Bridge: NSObject {
 
     deinit {
         configuration.removeObserver(self, forKeyPath: #keyPath(WKWebViewConfiguration.userContentController))
-        configuration.userContentController.removeScriptMessageHandler(forName: Bridge.name)
+        configuration.userContentController.removeScriptMessageHandler(forName: Self.name)
     }
 
     fileprivate init(webView: WKWebView) {
@@ -77,7 +77,7 @@ open class Bridge: NSObject {
         self.configuration = webView.configuration
         super.init()
         configuration.addObserver(self, forKeyPath: #keyPath(WKWebViewConfiguration.userContentController), options: [.new, .old], context: nil)
-        configuration.userContentController.add(self, name: Bridge.name)
+        configuration.userContentController.add(self, name: Self.name)
     }
 
     /// Register to handle action
@@ -112,7 +112,7 @@ open class Bridge: NSObject {
     /// ```
     public func post(action: String, parameters: [String: Any]?) {
         guard let webView = webView else { return }
-        webView.st_dispatchBridgeEvent(Bridge.postEventName, parameters: ["name": action], results: .success(parameters), completionHandler: nil)
+        webView.st_dispatchBridgeEvent(Self.postEventName, parameters: ["name": action], results: .success(parameters), completionHandler: nil)
     }
 
     /// Evaluates the given JavaScript string.
@@ -123,14 +123,14 @@ open class Bridge: NSObject {
         webView.evaluateJavaScript(javaScriptString, completionHandler: completion)
     }
 
-    open override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+    override open func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
         if let obj = object as? WKWebViewConfiguration, let kp = keyPath, obj == configuration && kp == #keyPath(WKWebViewConfiguration.userContentController) {
             if let change = change {
                 if let oldContentController = change[.oldKey] as? WKUserContentController {
-                    oldContentController.removeScriptMessageHandler(forName: Bridge.name)
+                    oldContentController.removeScriptMessageHandler(forName: Self.name)
                 }
                 if let newContentController = change[.newKey] as? WKUserContentController {
-                    newContentController.add(self, name: Bridge.name)
+                    newContentController.add(self, name: Self.name)
                 }
             }
         }
@@ -138,12 +138,13 @@ open class Bridge: NSObject {
 }
 
 extension Bridge: WKScriptMessageHandler {
-
+    // swiftlint:disable indentation_width
     /*! @abstract Invoked when a script message is received from a webpage.
      @param userContentController The user content controller invoking the
      delegate method.
      @param message The script message received.
      */
+    // swiftlint:disable legacy_objc_type
     public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let name = body[MessageKey.action] as? String else {
             return
@@ -156,7 +157,7 @@ extension Bridge: WKScriptMessageHandler {
                 return
             }
             if let callbackID = (body[MessageKey.callback] as? NSNumber) {
-                defaultHandler(name, body[MessageKey.parameters] as? [String: Any]) { [weak self] (results) in
+                defaultHandler(name, body[MessageKey.parameters] as? [String: Any]) { [weak self] results in
                     guard let strongSelf = self else {
                         return
                     }
@@ -165,15 +166,13 @@ extension Bridge: WKScriptMessageHandler {
                     webView.st_dispatchBridgeEvent(Bridge.callbackEventName, parameters: ["id": callbackID], results: results, completionHandler: nil)
                 }
             } else {
-                defaultHandler(name, body[MessageKey.parameters] as? [String: Any]) { (results) in
-                    // Do Nothing
-                }
+                defaultHandler(name, body[MessageKey.parameters] as? [String: Any]) { _ in }
             }
             return
         }
 
         if let callbackID = (body[MessageKey.callback] as? NSNumber) {
-            handler(body[MessageKey.parameters] as? [String: Any]) { [weak self] (results) in
+            handler(body[MessageKey.parameters] as? [String: Any]) { [weak self] results in
                 guard let strongSelf = self else {
                     return
                 }
@@ -182,9 +181,7 @@ extension Bridge: WKScriptMessageHandler {
                 webView.st_dispatchBridgeEvent(Bridge.callbackEventName, parameters: ["id": callbackID], results: results, completionHandler: nil)
             }
         } else {
-            handler(body[MessageKey.parameters] as? [String: Any]) { (results) in
-                // Do Nothing
-            }
+            handler(body[MessageKey.parameters] as? [String: Any]) { _ in }
         }
     }
 }
@@ -217,10 +214,7 @@ public extension WKWebView {
 
 fileprivate extension WKWebView {
 
-    func st_dispatchBridgeEvent(_ eventName: String,
-                                            parameters: [String: Any],
-                                            results: Bridge.Results,
-                                            completionHandler: ((Any?, Error?) -> Void)? = nil) {
+    func st_dispatchBridgeEvent(_ eventName: String, parameters: [String: Any], results: Bridge.Results, completionHandler: ((Any?, Error?) -> Void)? = nil) {
 
         var eventDetail: [String: Any] = parameters
         switch results {

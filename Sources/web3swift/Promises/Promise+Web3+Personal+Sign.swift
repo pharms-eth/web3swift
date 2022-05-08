@@ -4,11 +4,10 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
-
-extension web3.Personal {
+extension Web3.Personal {
 
     public func signPersonal(message: Data, from: EthereumAddress, password: String = "web3swift") async throws -> Data {
 
@@ -19,14 +18,10 @@ extension web3.Personal {
             let response = try await self.web3.dispatch(request)
 
             guard let value: Data = response.getValue() else {
-                if response.error != nil {
-                    throw Web3Error.nodeError(desc: response.error!.message)
-                }
-                throw Web3Error.nodeError(desc: "Invalid value from Ethereum node")
+                throw Web3Error.nodeError(desc: response.error?.message ?? "Invalid value from Ethereum node")
             }
             return value
         }
-
 
         guard let signature = try Web3Signer.signPersonalMessage(message, keystore: attachedKeystoreManager, account: from, password: password) else {
             throw Web3Error.inputError(desc: "Failed to locally sign a message")

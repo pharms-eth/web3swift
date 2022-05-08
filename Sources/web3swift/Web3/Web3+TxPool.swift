@@ -4,10 +4,10 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
-extension web3.TxPool {
+extension Web3.TxPool {
     public func getInspect() async throws -> [String: [String: [String: String]]] {
         let result = try await self.txPoolInspect()
         return result

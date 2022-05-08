@@ -6,21 +6,22 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 public protocol ContractProtocol {
     var address: EthereumAddress? {get set}
     var transactionOptions: TransactionOptions? {get set}
     var allMethods: [String] {get}
     var allEvents: [String] {get}
+
     func deploy(bytecode: Data, parameters: [AnyObject], extraData: Data) -> EthereumTransaction?
     func method(_ method: String, parameters: [AnyObject], extraData: Data) -> EthereumTransaction?
     init?(_ abiString: String, at: EthereumAddress?)
     func decodeReturnData(_ method: String, data: Data) -> [String: Any]?
     func decodeInputData(_ method: String, data: Data) -> [String: Any]?
     func decodeInputData(_ data: Data) -> [String: Any]?
-    func parseEvent(_ eventLog: EventLog) -> (eventName:String?, eventData:[String: Any]?)
+    func parseEvent(_ eventLog: EventLog) -> (eventName: String?, eventData: [String: Any]?)
     func testBloomForEventPrecence(eventName: String, bloom: EthereumBloomFilter) -> Bool?
 }
 
@@ -60,9 +61,7 @@ public struct EventFilter {
 
     public init() { }
 
-    public init(fromBlock: Block?, toBlock: Block?,
-                addresses: [EthereumAddress]? = nil,
-                parameterFilters: [[EventFilterable]?]? = nil) {
+    public init(fromBlock: Block?, toBlock: Block?, addresses: [EthereumAddress]? = nil, parameterFilters: [[EventFilterable]?]? = nil) {
         self.fromBlock = fromBlock
         self.toBlock = toBlock
         self.addresses = addresses
@@ -76,22 +75,14 @@ public struct EventFilter {
 
     public func rpcPreEncode() -> EventFilterParameters {
         var encoding = EventFilterParameters()
-        if self.fromBlock != nil {
-            encoding.fromBlock = self.fromBlock!.encoded
+        if let encodedVal = self.fromBlock?.encoded {
+            encoding.fromBlock = encodedVal
         }
-        if self.toBlock != nil {
-            encoding.toBlock = self.toBlock!.encoded
+        if let encodedVal = self.toBlock?.encoded {
+            encoding.toBlock = encodedVal
         }
-        if self.addresses != nil {
-            if self.addresses!.count == 1 {
-                encoding.address = [self.addresses![0].address]
-            } else {
-                var encodedAddresses = [String?]()
-                for addr in self.addresses! {
-                    encodedAddresses.append(addr.address)
-                }
-                encoding.address = encodedAddresses
-            }
+        if let ethAddr = addresses {
+            encoding.address = ethAddr.map { $0.address }
         }
         return encoding
     }

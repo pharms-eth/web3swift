@@ -3,8 +3,8 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 extension ABI.Element {
 
@@ -28,16 +28,16 @@ extension ABI.Element {
             case .dynamicBytes:
                 return false
             case .array(type: let type, length: let length):
-                if (length == 0) {
+                if length == 0 {
                     return false
                 }
-                if (!type.isStatic) {
+                if !type.isStatic {
                     return false
                 }
                 return true
             case .tuple(types: let types):
                 for t in types {
-                    if (!t.isStatic) {
+                    if !t.isStatic {
                         return false
                     }
                 }
@@ -83,7 +83,7 @@ extension ABI.Element {
                     return 32
                 }
                 if self.isStatic {
-                    return 32*length
+                    return 32 * length
                 }
                 return 32
             case .tuple(types: let types):
@@ -92,7 +92,7 @@ extension ABI.Element {
                 }
                 var sum: UInt64 = 0
                 for t in types {
-                    sum = sum + t.memoryUsage
+                    sum += t.memoryUsage
                 }
                 return sum
             default:
@@ -107,7 +107,8 @@ extension ABI.Element {
             case .int(bits: _):
                 return BigUInt(0)
             case .address:
-                return EthereumAddress("0x0000000000000000000000000000000000000000")!
+                guard let addr = EthereumAddress("0x0000000000000000000000000000000000000000") else { fatalError("Base EthereumAddress corrupted") }
+                return addr
             case .function:
                 return Data(repeating: 0x00, count: 24)
             case .bool:
@@ -116,7 +117,7 @@ extension ABI.Element {
                 return Data(repeating: 0x00, count: Int(length))
             case .array(type: let type, length: let length):
                 let emptyValueOfType = type.emptyValue
-                return Array.init(repeating: emptyValueOfType, count: Int(length))
+                return Array(repeating: emptyValueOfType, count: Int(length))
             case .dynamicBytes:
                 return Data()
             case .string:
@@ -129,7 +130,7 @@ extension ABI.Element {
         var arraySize: ABI.Element.ArraySize {
             switch self {
             case .array(type: _, length: let length):
-                if (length == 0) {
+                if length == 0 {
                     return ArraySize.dynamicSize
                 }
                 return ArraySize.staticSize(length)
@@ -141,7 +142,7 @@ extension ABI.Element {
 }
 
 extension ABI.Element.ParameterType: Equatable {
-    public static func ==(lhs: ABI.Element.ParameterType, rhs: ABI.Element.ParameterType) -> Bool {
+    public static func == (lhs: ABI.Element.ParameterType, rhs: ABI.Element.ParameterType) -> Bool {
         switch (lhs, rhs) {
         case let (.uint(length1), .uint(length2)):
             return length1 == length2
@@ -169,26 +170,26 @@ extension ABI.Element.ParameterType: Equatable {
 
 extension ABI.Element.Function {
     public var signature: String {
-        return "\(name ?? "")(\(inputs.map { $0.type.abiRepresentation }.joined(separator: ",")))"
+        "\(name ?? "")(\(inputs.map { $0.type.abiRepresentation }.joined(separator: ",")))"
     }
 
     public var methodString: String {
-        return String(signature.sha3(.keccak256).prefix(8))
+        String(signature.sha3(.keccak256).prefix(8))
     }
 
     public var methodEncoding: Data {
-        return signature.data(using: .ascii)!.sha3(.keccak256)[0...3]
+        signature.data(using: .ascii)?.sha3(.keccak256)[0...3] ?? Data()
     }
 }
 
 // MARK: - Event topic
 extension ABI.Element.Event {
     public var signature: String {
-        return "\(name)(\(inputs.map { $0.type.abiRepresentation }.joined(separator: ",")))"
+        "\(name)(\(inputs.map { $0.type.abiRepresentation }.joined(separator: ",")))"
     }
 
     public var topic: Data {
-        return signature.data(using: .ascii)!.sha3(.keccak256)
+        signature.data(using: .ascii)?.sha3(.keccak256) ?? Data()
     }
 }
 
@@ -210,7 +211,7 @@ extension ABI.Element.ParameterType: ABIEncoding {
         case .function:
             return "function"
         case .array(type: let type, length: let length):
-            if (length == 0) {
+            if length == 0 {
                 return  "\(type.abiRepresentation)[]"
             }
             return "\(type.abiRepresentation)[\(length)]"
@@ -228,14 +229,14 @@ extension ABI.Element.ParameterType: ABIValidation {
     public var isValid: Bool {
         switch self {
         case .uint(let bits), .int(let bits):
-            return bits > 0 && bits <= 256 && bits % 8 == 0
+            return bits > 0 && bits <= 256 && bits.isMultiple(of: 8)
         case .bytes(let length):
             return length > 0 && length <= 32
         case .array(type: let type, _):
             return type.isValid
         case .tuple(types: let types):
             for t in types {
-                if (!t.isValid) {
+                if !t.isValid {
                     return false
                 }
             }

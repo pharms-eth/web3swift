@@ -6,20 +6,20 @@
 //  Copyright © 2022 web3swift. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 extension Web3 {
     /// Oracle is the class to do a transaction fee suggestion
-    final public class Oracle {
+    public final class Oracle {
 
         /// Web3 provider by which accessing to the blockchain
-        private let web3Provider: web3
+        private let web3Provider: Web3
 
         private var feeHistory: FeeHistory?
 
         /// Ethereum scope shortcut
-        private var eth: web3.Eth { web3Provider.eth }
+        private var eth: Web3.Eth { web3Provider.eth }
 
         /// Block to start getting history backward
         var block: BlockNumber
@@ -41,20 +41,19 @@ extension Web3 {
 
         // TODO: Disabled until 3.0 version, coz will be enabled from 3.0.0.
 //        var forceDropCache = false
-
+// swiftlint:disable indentation_width
         /// Oracle initializer
         /// - Parameters:
         ///   - provider: Web3 Ethereum provider
         ///   - block: Number of block from which counts starts backward
         ///   - blockCount: Count of block to calculate statistics
         ///   - percentiles: Percentiles of fees to which result of predictions will be split in
-        public init(_ provider: web3, block: BlockNumber = .latest, blockCount: BigUInt = 20, percentiles: [Double] = [25, 50, 75]) {
+        public init(_ provider: Web3, block: BlockNumber = .latest, blockCount: BigUInt = 20, percentiles: [Double] = [25, 50, 75]) {
             self.web3Provider = provider
             self.block = block
             self.blockCount = blockCount
             self.percentiles = percentiles
         }
-
 
         /// Returning one dimensional array from two dimensional array
         ///
@@ -67,9 +66,7 @@ extension Web3 {
         private func soft(twoDimentsion array: [[BigUInt]]) -> [BigUInt] {
             array.compactMap { percentileArray -> [BigUInt]? in
                 guard !percentileArray.isEmpty else { return nil }
-                // swiftlint:disable force_unwrapping
                 return [percentileArray.mean()!]
-                // swiftlint:enable force_unwrapping
             }
             .flatMap { $0 }
         }
@@ -101,7 +98,7 @@ extension Web3 {
             /// reaarange `[[min, middle, max]]` to `[[min], [middle], [max]]`
             try await suggestGasValues().reward
                 .forEach { percentiles in
-                    percentiles.enumerated().forEach { (index, percentile) in
+                    percentiles.enumerated().forEach { index, percentile in
                         /// if `rearrengedArray` have not that enough items
                         /// as `percentiles` current item index
                         if rearrengedArray.endIndex <= index {
@@ -117,15 +114,18 @@ extension Web3 {
         }
 
         private func suggestBaseFee() async throws -> [BigUInt] {
-            self.feeHistory = try await suggestGasValues()
-            return calculatePercentiles(for: feeHistory!.baseFeePerGas)
+            let feeValue = try await suggestGasValues()
+            self.feeHistory = feeValue
+            return calculatePercentiles(for: feeValue.baseFeePerGas)
         }
 
         private func suggestGasFeeLegacy() async throws -> [BigUInt] {
             var latestBlockNumber: BigUInt = 0
             switch block {
-            case .latest: latestBlockNumber = try await eth.getBlockNumber()
-            case let .exact(number): latestBlockNumber = number
+            case .latest:
+                latestBlockNumber = try await eth.getBlockNumber()
+            case let .exact(number):
+                latestBlockNumber = number
             }
 
             guard latestBlockNumber != 0 else { return [] }
@@ -139,7 +139,6 @@ extension Web3 {
                             try await self.eth.getBlockByNumber(transaction, fullTransactions: true)
                         }
                     }
-
 
                 var collected = [Block]()
 
@@ -240,7 +239,6 @@ extension Web3.Oracle.FeeHistory: Decodable {
     }
 }
 
-
 public extension Web3 {
     /// Enum for convenient type safe work with block number
     enum BlockNumber {
@@ -254,8 +252,10 @@ public extension Web3 {
         /// Could be `hexString` either `latest`
         internal var hexValue: String {
             switch self {
-            case .latest: return "latest"
-            case let .exact(number): return String(number, radix: 16).addHexPrefix()
+            case .latest:
+                return "latest"
+            case let .exact(number):
+                return String(number, radix: 16).addHexPrefix()
             }
         }
     }

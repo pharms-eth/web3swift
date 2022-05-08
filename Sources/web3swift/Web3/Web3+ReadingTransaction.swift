@@ -4,18 +4,18 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 public class ReadTransaction {
     public var transaction: EthereumTransaction
     public var contract: EthereumContract
     public var method: String
-    public var transactionOptions: TransactionOptions = TransactionOptions.defaultOptions
+    public var transactionOptions: TransactionOptions = .defaultOptions
 
-    var web3: web3
+    var web3: Web3
 
-    public init (transaction: EthereumTransaction, web3 web3Instance: web3, contract: EthereumContract, method: String, transactionOptions: TransactionOptions?) {
+    public init (transaction: EthereumTransaction, web3 web3Instance: Web3, contract: EthereumContract, method: String, transactionOptions: TransactionOptions?) {
         self.transaction = transaction
         self.web3 = web3Instance
         self.contract = contract
@@ -70,8 +70,8 @@ public class ReadTransaction {
         }
 
         optionsForGasEstimation.callOnBlock = mergedOptions.callOnBlock
-        if mergedOptions.value != nil {
-            assembledTransaction.value = mergedOptions.value!
+        if let mergedOptVal = mergedOptions.value {
+            assembledTransaction.value = mergedOptVal
         }
 
         return try await self.web3.eth.estimateGas(for: assembledTransaction, transactionOptions: optionsForGasEstimation)
@@ -79,10 +79,10 @@ public class ReadTransaction {
     }
 
     public func estimateGas(transactionOptions: TransactionOptions? = nil) async throws -> BigUInt {
-        return try await self.estimateGas(with: transactionOptions)
+        try await self.estimateGas(with: transactionOptions)
     }
 
     public func call(transactionOptions: TransactionOptions? = nil) async throws -> [String: Any] {
-        return try await self.decodedData(with: transactionOptions)
+        try await self.decodedData(with: transactionOptions)
     }
 }

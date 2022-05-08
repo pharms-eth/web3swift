@@ -4,8 +4,8 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 /// Protocol for generic Ethereum event parsing results
 public protocol EventParserResultProtocol {
@@ -38,21 +38,31 @@ public enum Networks {
 
     public var name: String {
         switch self {
-        case .Rinkeby: return "rinkeby"
-        case .Ropsten: return "ropsten"
-        case .Mainnet: return "mainnet"
-        case .Kovan: return "kovan"
-        case .Custom: return ""
+        case .Rinkeby:
+            return "rinkeby"
+        case .Ropsten:
+            return "ropsten"
+        case .Mainnet:
+            return "mainnet"
+        case .Kovan:
+            return "kovan"
+        case .Custom:
+            return ""
         }
     }
 
     public var chainID: BigUInt {
         switch self {
-        case .Custom(let networkID): return networkID
-        case .Mainnet: return BigUInt(1)
-        case .Ropsten: return BigUInt(3)
-        case .Rinkeby: return BigUInt(4)
-        case .Kovan: return BigUInt(42)
+        case .Custom(let networkID):
+            return networkID
+        case .Mainnet:
+            return BigUInt(1)
+        case .Ropsten:
+            return BigUInt(3)
+        case .Rinkeby:
+            return BigUInt(4)
+        case .Kovan:
+            return BigUInt(42)
         }
     }
 
@@ -61,27 +71,27 @@ public enum Networks {
     static func fromInt(_ networkID: Int) -> Networks? {
         switch networkID {
         case 1:
-            return Networks.Mainnet
+            return Self.Mainnet
         case 3:
-            return Networks.Ropsten
+            return Self.Ropsten
         case 4:
-            return Networks.Rinkeby
+            return Self.Rinkeby
         case 42:
-            return Networks.Kovan
+            return Self.Kovan
         default:
-            return Networks.Custom(networkID: BigUInt(networkID))
+            return Self.Custom(networkID: BigUInt(networkID))
         }
     }
 }
 
 extension Networks: Equatable {
-    public static func ==(lhs: Networks, rhs: Networks) -> Bool {
-        return lhs.chainID == rhs.chainID
-            && lhs.name == rhs.name
+    public static func == (lhs: Networks, rhs: Networks) -> Bool {
+        lhs.chainID == rhs.chainID && lhs.name == rhs.name
     }
 }
 
 public protocol EventLoopRunnableProtocol {
     var name: String {get}
+
     func functionToRun() async
 }

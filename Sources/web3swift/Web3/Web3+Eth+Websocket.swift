@@ -5,16 +5,18 @@
 //  Created by Anton on 03/04/2019.
 //  Copyright © 2019 The Matter Inc. All rights reserved.
 //
-import Foundation
 import BigInt
-
+import Foundation
 import Starscream
 
-extension web3.Eth {
+extension Web3.Eth {
 
     public func getWebsocketProvider(forDelegate delegate: Web3SocketDelegate) throws -> InfuraWebsocketProvider {
         var infuraWSProvider: InfuraWebsocketProvider
-        if !(provider is InfuraWebsocketProvider) {
+
+        if let prov = provider as? InfuraWebsocketProvider {
+            infuraWSProvider = prov
+        } else {
             guard let infuraNetwork = provider.network else {
                 throw Web3Error.processingError(desc: "Wrong network")
             }
@@ -22,9 +24,8 @@ extension web3.Eth {
                 throw Web3Error.processingError(desc: "Wrong network")
             }
             infuraWSProvider = infuraProvider
-        } else {
-            infuraWSProvider = provider as! InfuraWebsocketProvider
         }
+
         infuraWSProvider.connectSocket()
         return infuraWSProvider
     }

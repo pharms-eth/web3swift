@@ -4,8 +4,8 @@
 //
 //  Support for EIP-1559 Transaction type by Mark Loit March 2022
 
-import Foundation
 import BigInt
+import Foundation
 
 public struct EIP1559Envelope: EIP2718Envelope {
     public let type: TransactionType = .eip1559
@@ -62,7 +62,7 @@ public struct EIP1559Envelope: EIP2718Envelope {
 
     public var parameters: EthereumParameters {
         get {
-            return EthereumParameters(
+            EthereumParameters(
                 type: type,
                 to: to,
                 nonce: nonce,
@@ -122,17 +122,14 @@ extension EIP1559Envelope {
         let list = try? container.decode([AccessListEntry].self, forKey: .accessList)
         self.accessList = list ?? []
 
-        let toString = try? container.decode(String.self, forKey: .to)
-        switch toString {
-        case nil, "0x", "0x0":
-            self.to = EthereumAddress.contractDeploymentAddress()
-        default:
-            // the forced unwrap here is safe as we trap nil in the previous case
-            // swiftlint:disable force_unwrapping
-            guard let ethAddr = EthereumAddress(toString!) else { throw Web3Error.dataError }
-            // swiftlint:enable force_unwrapping
-            self.to = ethAddr
+        let ethAddr: EthereumAddress
+        if let toString = try? container.decode(String.self, forKey: .to), toString != "0x" && toString != "0x0"{
+            guard let eAddr = EthereumAddress(toString) else { throw Web3Error.dataError }
+            ethAddr = eAddr
+        } else {
+            ethAddr = EthereumAddress.contractDeploymentAddress()
         }
+        self.to = ethAddr
 
         self.value = try container.decodeHexIfPresent(BigUInt.self, forKey: .value) ?? 0
         self.maxPriorityFeePerGas = try container.decodeHexIfPresent(BigUInt.self, forKey: .maxPriorityFeePerGas) ?? 0
@@ -169,19 +166,16 @@ extension EIP1559Envelope {
         guard let rlpItem = totalItem[0] else { return nil }
         guard RlpKey.allCases.count == rlpItem.count else { return nil }
 
-        // we've validated the item count, so rlpItem[keyName] is guaranteed to return something not nil
-        // swiftlint:disable force_unwrapping
-        guard let chainData = rlpItem[RlpKey.chainId.rawValue]!.data else { return nil }
-        guard let nonceData = rlpItem[RlpKey.nonce.rawValue]!.data else { return nil }
-        guard let maxPriorityData = rlpItem[RlpKey.maxPriorityFeePerGas.rawValue]!.data else { return nil }
-        guard let maxFeeData = rlpItem[RlpKey.maxFeePerGas.rawValue]!.data else { return nil }
-        guard let gasLimitData = rlpItem[RlpKey.gasLimit.rawValue]!.data else { return nil }
-        guard let valueData = rlpItem[RlpKey.amount.rawValue]!.data else { return nil }
-        guard let transactionData = rlpItem[RlpKey.data.rawValue]!.data else { return nil }
-        guard let vData = rlpItem[RlpKey.sig_v.rawValue]!.data else { return nil }
-        guard let rData = rlpItem[RlpKey.sig_r.rawValue]!.data else { return nil }
-        guard let sData = rlpItem[RlpKey.sig_s.rawValue]!.data else { return nil }
-        // swiftlint:enable force_unwrapping
+        guard let chainData = rlpItem[RlpKey.chainId.rawValue]?.data else { return nil }
+        guard let nonceData = rlpItem[RlpKey.nonce.rawValue]?.data else { return nil }
+        guard let maxPriorityData = rlpItem[RlpKey.maxPriorityFeePerGas.rawValue]?.data else { return nil }
+        guard let maxFeeData = rlpItem[RlpKey.maxFeePerGas.rawValue]?.data else { return nil }
+        guard let gasLimitData = rlpItem[RlpKey.gasLimit.rawValue]?.data else { return nil }
+        guard let valueData = rlpItem[RlpKey.amount.rawValue]?.data else { return nil }
+        guard let transactionData = rlpItem[RlpKey.data.rawValue]?.data else { return nil }
+        guard let vData = rlpItem[RlpKey.sig_v.rawValue]?.data else { return nil }
+        guard let rData = rlpItem[RlpKey.sig_r.rawValue]?.data else { return nil }
+        guard let sData = rlpItem[RlpKey.sig_s.rawValue]?.data else { return nil }
 
         self.chainID = BigUInt(chainData)
         self.nonce = BigUInt(nonceData)
@@ -194,34 +188,28 @@ extension EIP1559Envelope {
         self.r = BigUInt(rData)
         self.s = BigUInt(sData)
 
-        // swiftlint:disable force_unwrapping
-        switch rlpItem[RlpKey.destination.rawValue]!.content {
-        // swiftlint:enable force_unwrapping
+        switch rlpItem[RlpKey.destination.rawValue]?.content {
         case .noItem:
             self.to = EthereumAddress.contractDeploymentAddress()
         case .data(let addressData):
-            if addressData.count == 0 {
+            if addressData.isEmpty {
                 self.to = EthereumAddress.contractDeploymentAddress()
             } else if addressData.count == 20 {
                 guard let addr = EthereumAddress(addressData) else { return nil }
                 self.to = addr
             } else { return nil }
-        case .list:
+        case .list, .none:
             return nil
         }
 
-        // swiftlint:disable force_unwrapping
-        switch rlpItem[RlpKey.accessList.rawValue]!.content {
-            // swiftlint:enable force_unwrapping
+        guard let keyAccessList = rlpItem[RlpKey.accessList.rawValue] else { return nil }
+        switch keyAccessList.content {
         case .noItem:
             self.accessList = []
         case .data:
             return nil
         case .list:
-            // decode the list here
-            // swiftlint:disable force_unwrapping
-            let accessData = rlpItem[RlpKey.accessList.rawValue]!
-            // swiftlint:enable force_unwrapping
+            let accessData = keyAccessList
             let itemCount = accessData.count ?? 0
             var newList: [AccessListEntry] = []
             for index in 0...(itemCount - 1) {
@@ -233,14 +221,12 @@ extension EIP1559Envelope {
         }
     }
 
-    public init(to: EthereumAddress, nonce: BigUInt? = nil,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0,
-                parameters: EthereumParameters? = nil) {
+    public init(to: EthereumAddress, nonce: BigUInt? = nil, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0, parameters: EthereumParameters? = nil) {
         self.to = to
         self.nonce = nonce ?? parameters?.nonce ?? 0
         self.chainID = parameters?.chainID ?? 0
         self.value = parameters?.value ?? 0
-        self.data =  parameters?.data ?? Data()
+        self.data = parameters?.data ?? Data()
         self.v = v
         self.r = r
         self.s = s
@@ -251,11 +237,7 @@ extension EIP1559Envelope {
     }
 
     // memberwise
-    public init(to: EthereumAddress, nonce: BigUInt = 0,
-                chainID: BigUInt = 0, value: BigUInt = 0, data: Data,
-                maxPriorityFeePerGas: BigUInt = 0, maxFeePerGas: BigUInt = 0, gasLimit: BigUInt = 0,
-                accessList: [AccessListEntry]? = nil,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
+    public init(to: EthereumAddress, nonce: BigUInt = 0, chainID: BigUInt = 0, value: BigUInt = 0, data: Data, maxPriorityFeePerGas: BigUInt = 0, maxFeePerGas: BigUInt = 0, gasLimit: BigUInt = 0, accessList: [AccessListEntry]? = nil, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
         self.to = to
         self.nonce = nonce
         self.chainID = chainID
@@ -286,8 +268,10 @@ extension EIP1559Envelope {
         let list = accessList.map { $0.encodeAsList() as AnyObject }
 
         switch type {
-        case .transaction: fields = [chainID, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to.addressData, value, data, list, v, r, s] as [AnyObject]
-        case .signature: fields = [chainID, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to.addressData, value, data, list] as [AnyObject]
+        case .transaction:
+            fields = [chainID, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to.addressData, value, data, list, v, r, s] as [AnyObject]
+        case .signature:
+            fields = [chainID, nonce, maxPriorityFeePerGas, maxFeePerGas, gasLimit, to.addressData, value, data, list] as [AnyObject]
         }
         guard var result = RLP.encode(fields) else { return nil }
         result.insert(UInt8(self.type.rawValue), at: 0)

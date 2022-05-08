@@ -4,12 +4,13 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
 import CryptoSwift
+import Foundation
 
 public struct EthereumBloomFilter {
     public var bytes = Data(repeatElement(UInt8(0), count: 256))
+
     public init?(_ biguint: BigUInt) {
         guard let data = biguint.serialize().setLengthLeft(256) else {return nil}
         bytes = data
@@ -20,14 +21,14 @@ public struct EthereumBloomFilter {
         bytes = padding + data
     }
     public func asBigUInt() -> BigUInt {
-        return BigUInt(self.bytes)
+        BigUInt(self.bytes)
     }
 }
 
 extension EthereumBloomFilter {
 
     static func bloom9(_ biguint: BigUInt) -> BigUInt {
-        return EthereumBloomFilter.bloom9(biguint.serialize())
+        EthereumBloomFilter.bloom9(biguint.serialize())
     }
 
     static func bloom9(_ data: Data) -> BigUInt {
@@ -36,7 +37,7 @@ extension EthereumBloomFilter {
         let mask = BigUInt(2047)
         for i in stride(from: 0, to: 6, by: 2) {
             var t = BigUInt(1)
-            let num = (BigUInt(b[i+1]) + (BigUInt(b[i]) << 8)) & mask
+            let num = (BigUInt(b[i + 1]) + (BigUInt(b[i]) << 8)) & mask
             //  b = num.serialize().setLengthLeft(8)!
             t = t << num
             r = r | t
@@ -70,7 +71,7 @@ extension EthereumBloomFilter {
     }
 
     public func test(topic: BigUInt) -> Bool {
-        return self.test(topic: topic.serialize())
+        self.test(topic: topic.serialize())
     }
 
     public static func bloomLookup(_ bloom: EthereumBloomFilter, topic: Data) -> Bool {
@@ -80,7 +81,7 @@ extension EthereumBloomFilter {
     }
 
     public static func bloomLookup(_ bloom: EthereumBloomFilter, topic: BigUInt) -> Bool {
-        return EthereumBloomFilter.bloomLookup(bloom, topic: topic.serialize())
+        EthereumBloomFilter.bloomLookup(bloom, topic: topic.serialize())
     }
 
     public mutating func add(_ biguint: BigUInt) {
@@ -96,11 +97,11 @@ extension EthereumBloomFilter {
     }
 
     public func lookup (_ topic: Data) -> Bool {
-        return EthereumBloomFilter.bloomLookup(self, topic: topic)
+        EthereumBloomFilter.bloomLookup(self, topic: topic)
     }
 
     mutating func setBytes(_ data: Data) {
-        if (self.bytes.count < data.count) {
+        if self.bytes.count < data.count {
             fatalError("bloom bytes are too big")
         }
         self.bytes = self.bytes[0 ..< data.count] + data

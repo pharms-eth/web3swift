@@ -4,22 +4,21 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
-
+import Foundation
 
 extension Web3.Utils {
 
-    fileprivate typealias AssemblyHook = web3.AssemblyHook
-    fileprivate typealias SubmissionResultHook = web3.SubmissionResultHook
+    fileprivate typealias AssemblyHook = Web3.AssemblyHook
+    fileprivate typealias SubmissionResultHook = Web3.SubmissionResultHook
 
     public class NonceMiddleware: EventLoopRunnableProtocol {
-        var web3: web3?
+        var web3: Web3?
         var nonceLookups: [EthereumAddress: BigUInt] = [EthereumAddress: BigUInt]()
         public var name: String = "Nonce lookup middleware"
-        public let queue: DispatchQueue = DispatchQueue(label: "Nonce middleware queue")
+        public let queue = DispatchQueue(label: "Nonce middleware queue")
         public var synchronizationPeriod: TimeInterval = 300.0 // 5 minutes
-        var lastSyncTime: Date = Date()
+        var lastSyncTime = Date()
 
         public func functionToRun() async {
             guard let w3 = self.web3 else {return}
@@ -39,7 +38,7 @@ extension Web3.Utils {
                 for await value in group {
                     let key = knownKeys[i]
                     self.nonceLookups[key] = value
-                    i = i + 1
+                    i += 1
                 }
 
             }
@@ -49,6 +48,7 @@ extension Web3.Utils {
 
         }
 
+        // swiftlint:disable large_tuple
         func preAssemblyFunction(tx: EthereumTransaction, contract: EthereumContract, transactionOptions: TransactionOptions) -> (EthereumTransaction, EthereumContract, TransactionOptions, Bool) {
             guard let from = transactionOptions.from else {
                 // do nothing
@@ -92,7 +92,7 @@ extension Web3.Utils {
             return
         }
 
-        public func attach(_ web3: web3) {
+        public func attach(_ web3: Web3) {
             self.web3 = web3
             web3.eventLoop.monitoredUserFunctions.append(self)
             let preHook = AssemblyHook(function: self.preAssemblyFunction)

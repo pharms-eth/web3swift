@@ -6,15 +6,11 @@
 
 import Foundation
 
-extension web3.Eventloop {
+extension Web3.Eventloop {
 
     // @available(iOS 10.0, *)
     public func start(_ timeInterval: TimeInterval) {
-        if self.timer != nil {
-            self.timer!.suspend()
-            self.timer = nil
-        }
-        
+        self.timer?.suspend()
         self.timer = RepeatingTimer(timeInterval: timeInterval)
         self.timer?.eventHandler = self.runnable
         self.timer?.resume()
@@ -22,10 +18,8 @@ extension web3.Eventloop {
     }
 
     public func stop() {
-        if self.timer != nil {
-            self.timer!.suspend()
-            self.timer = nil
-        }
+        self.timer?.suspend()
+        self.timer = nil
     }
 
     func runnable() {
@@ -57,9 +51,9 @@ class RepeatingTimer {
     private lazy var timer: DispatchSourceTimer = {
         let t = DispatchSource.makeTimerSource()
         t.schedule(deadline: .now() + self.timeInterval, repeating: self.timeInterval)
-        t.setEventHandler(handler: { [weak self] in
+        t.setEventHandler { [weak self] in
             self?.eventHandler?()
-        })
+        }
         return t
     }()
 
@@ -75,6 +69,7 @@ class RepeatingTimer {
     deinit {
         timer.setEventHandler {}
         timer.cancel()
+        // swiftlint:disable indentation_width
         /*
          If the timer is suspended, calling cancel without resuming
          triggers a crash. This is documented here https://forums.developer.apple.com/thread/15902

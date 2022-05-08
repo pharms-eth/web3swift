@@ -4,10 +4,8 @@
 //
 //  Created by Yaroslav on 14.03.2022.
 //
-
-import Foundation
 import BigInt
-
+import Foundation
 
 /// EIP-1559 Base fee extension
 ///
@@ -79,7 +77,7 @@ public extension Web3 {
             let expectedBaseFeePerGas = parentBaseFee + baseFeePerGasDelta
 
             return expectedBaseFeePerGas
-        } else if parent.gasUsed < parentGasTarget  {
+        } else if parent.gasUsed < parentGasTarget {
             // Otherwise if the parent block used less gas than its target, the baseFee should decrease.
             let gasUsedDelta = parentGasTarget - parent.gasUsed
             let baseFeePerGasDelta = parentBaseFee * gasUsedDelta / parentGasTarget / Web3.BaseFeeChangeDenominator
@@ -140,13 +138,20 @@ public extension Web3 {
 
         var mainNetFisrtBlockNumber: BigUInt {
             switch self {
-                case .Byzantium: return 4_370_000
-                case .Constantinople: return 7_280_000
-                case .Istanbul: return 9_069_000
-                case .MuirGlacier: return 9_200_000
-                case .Berlin: return 12_244_000
-                case .London: return 12_965_000
-                case .ArrowGlacier: return 13_773_000
+            case .Byzantium:
+                return 4_370_000
+            case .Constantinople:
+                return 7_280_000
+            case .Istanbul:
+                return 9_069_000
+            case .MuirGlacier:
+                return 9_200_000
+            case .Berlin:
+                return 12_244_000
+            case .London:
+                return 12_965_000
+            case .ArrowGlacier:
+                return 13_773_000
             }
         }
     }
@@ -175,5 +180,6 @@ public extension Web3 {
 }
 
 extension Web3.MainChainVersion: Comparable {
-    public static func < (lhs: Web3.MainChainVersion, rhs: Web3.MainChainVersion) -> Bool { return lhs.mainNetFisrtBlockNumber < rhs.mainNetFisrtBlockNumber }
- }
+    public static func < (lhs: Web3.MainChainVersion, rhs: Web3.MainChainVersion) -> Bool {
+        lhs.mainNetFisrtBlockNumber < rhs.mainNetFisrtBlockNumber }
+    }

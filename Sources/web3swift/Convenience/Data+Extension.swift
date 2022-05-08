@@ -11,15 +11,15 @@ public extension Data {
 
     init<T>(fromArray values: [T]) {
         let values = values
-        let ptrUB = values.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer) in return ptr }
+        let ptrUB = values.withUnsafeBufferPointer { $0 }
         self.init(buffer: ptrUB)
     }
 
     func toArray<T>(type: T.Type) throws -> [T] {
-        return try self.withUnsafeBytes { (body: UnsafeRawBufferPointer) in
-            if let bodyAddress = body.baseAddress, body.count > 0 {
+        try self.withUnsafeBytes { (body: UnsafeRawBufferPointer) in
+            if let bodyAddress = body.baseAddress, !body.isEmpty {
                 let pointer = bodyAddress.assumingMemoryBound(to: T.self)
-                return [T](UnsafeBufferPointer(start: pointer, count: self.count/MemoryLayout<T>.stride))
+                return [T](UnsafeBufferPointer(start: pointer, count: self.count / MemoryLayout<T>.stride))
             } else {
                 throw Web3Error.dataError
             }
@@ -44,8 +44,8 @@ public extension Data {
     }
 
     static func randomBytes(length: Int) -> Data? {
-        let entropy_bit_size = length//128
-        //# valid_entropy_bit_sizes = [128, 160, 192, 224, 256], count: [12, 15, 18, 21, 24]
+        let entropy_bit_size = length
+        // valid_entropy_bit_sizes = [128, 160, 192, 224, 256], count: [12, 15, 18, 21, 24]
         var entropy_bytes = [UInt8](repeating: 0, count: entropy_bit_size)// / 8)
 
         let status = SecRandomCopyBytes(kSecRandomDefault, entropy_bytes.count, &entropy_bytes)
@@ -59,8 +59,8 @@ public extension Data {
 
         let source1 = MTLCreateSystemDefaultDevice()?.makeBuffer(length: length)?.hash.description.data(using: .utf8)
 
-        let entropyData = entropy_bytes.shuffled().map{ bit in
-            return bit ^ (source1?.randomElement() ?? 0)
+        let entropyData = entropy_bytes.shuffled().map { bit in
+            bit ^ (source1?.randomElement() ?? 0)
 
         }
 
@@ -69,8 +69,8 @@ public extension Data {
 
     static func fromHex(_ hex: String) -> Data? {
         let string = hex.lowercased().stripHexPrefix()
-        let array = Array<UInt8>(hex: string)
-        if (array.count == 0) {
+        let array = [UInt8](hex: string)
+        if array.isEmpty {
             return (hex == "0x" || hex.isEmpty) ? Data() : nil
         }
         return Data(array)
@@ -78,7 +78,7 @@ public extension Data {
 
     func bitsInRange(_ startingBit: Int, _ length: Int) -> UInt64? { // return max of 8 bytes for simplicity, non-public
         if startingBit + length / 8 > self.count, length > 64, startingBit > 0, length >= 1 {return nil}
-        let bytes = self[(startingBit/8) ..< (startingBit+length+7)/8]
+        let bytes = self[(startingBit / 8) ..< (startingBit + length + 7) / 8]
         let padding = Data(repeating: 0, count: 8 - bytes.count)
         let padded = bytes + padding
         guard padded.count == 8 else {return nil}
