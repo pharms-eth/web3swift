@@ -5,27 +5,27 @@
 import Foundation
 
 public struct KdfParamsV3: Decodable, Encodable {
-    var salt: String
-    var dklen: Int
-    var n: Int?
-    var p: Int?
-    var r: Int?
-    var c: Int?
-    var prf: String?
+    public var salt: String
+    public var dklen: Int
+    public var n: Int?
+    public var p: Int?
+    public var r: Int?
+    public var c: Int?
+    public var prf: String?
 }
 
 public struct CipherParamsV3: Decodable, Encodable {
-    var iv: String
+    public var iv: String
 }
 
 public struct CryptoParamsV3: Decodable, Encodable {
-    var ciphertext: String
-    var cipher: String
-    var cipherparams: CipherParamsV3
-    var kdf: String
-    var kdfparams: KdfParamsV3
-    var mac: String
-    var version: String?
+    public var ciphertext: String
+    public var cipher: String
+    public var cipherparams: CipherParamsV3
+    public var kdf: String
+    public var kdfparams: KdfParamsV3
+    public var mac: String
+    public var version: String?
 }
 
 public protocol AbstractKeystoreParams: Codable {
@@ -37,8 +37,8 @@ public protocol AbstractKeystoreParams: Codable {
 }
 
 public struct PathAddressPair: Codable {
-    let path: String
-    let address: String
+    public let path: String
+    public let address: String
 }
 
 public struct KeystoreParamsBIP32: AbstractKeystoreParams {
@@ -61,8 +61,8 @@ public struct KeystoreParamsBIP32: AbstractKeystoreParams {
         }
     }
 
-    var pathAddressPairs: [PathAddressPair]
-    var rootPath: String?
+    public var pathAddressPairs: [PathAddressPair]
+    public var rootPath: String?
 
     public init(crypto cr: CryptoParamsV3, id i: String, version ver: Int = 32, rootPath: String? = nil) {
         self.crypto = cr
@@ -81,7 +81,7 @@ public struct KeystoreParamsV3: AbstractKeystoreParams {
     public var version: Int
     public var isHDWallet: Bool
 
-    var address: String?
+    public var address: String?
 
     public init(address ad: String?, crypto cr: CryptoParamsV3, id i: String, version ver: Int) {
         address = ad
