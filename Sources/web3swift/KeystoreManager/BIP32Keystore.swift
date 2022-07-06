@@ -61,7 +61,7 @@ public class BIP32Keystore: AbstractKeystore {
 
     private static let KeystoreParamsBIP32Version = 4
 
-    private (set) var addressStorage: PathAddressStorage
+    public private (set) var addressStorage: PathAddressStorage
 
     public convenience init?(_ jsonString: String) {
         let lowercaseJSON = jsonString.lowercased()
@@ -73,6 +73,21 @@ public class BIP32Keystore: AbstractKeystore {
 
     public init?(_ jsonData: Data) {
         guard var keystorePars = try? JSONDecoder().decode(KeystoreParamsBIP32.self, from: jsonData) else {return nil}
+        if keystorePars.version != Self.KeystoreParamsBIP32Version {return nil}
+        if keystorePars.crypto.version != nil && keystorePars.crypto.version != "1" {return nil}
+        if !keystorePars.isHDWallet {return nil}
+
+        addressStorage = PathAddressStorage(pathAddressPairs: keystorePars.pathAddressPairs)
+
+        if keystorePars.rootPath == nil {
+            keystorePars.rootPath = HDNode.defaultPathPrefix
+        }
+        keystoreParams = keystorePars
+        rootPrefix = keystorePars.rootPath ?? HDNode.defaultPathPrefix
+    }
+
+    public init?(_ keystorePars: KeystoreParamsBIP32) {
+        var keystorePars = keystorePars
         if keystorePars.version != Self.KeystoreParamsBIP32Version {return nil}
         if keystorePars.crypto.version != nil && keystorePars.crypto.version != "1" {return nil}
         if !keystorePars.isHDWallet {return nil}

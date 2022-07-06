@@ -12,10 +12,22 @@ public struct KdfParamsV3: Decodable, Encodable {
     public var r: Int?
     public var c: Int?
     public var prf: String?
+    public init(salt: String, dklen: Int, n: Int?, p: Int?, r: Int?, c: Int?, prf: String?) {
+        self.salt = salt
+        self.dklen = dklen
+        self.n = n
+        self.p = p
+        self.r = r
+        self.c = c
+        self.prf = prf
+    }
 }
 
 public struct CipherParamsV3: Decodable, Encodable {
     public var iv: String
+    public init(iv: String) {
+        self.iv = iv
+    }
 }
 
 public struct CryptoParamsV3: Decodable, Encodable {
@@ -26,6 +38,16 @@ public struct CryptoParamsV3: Decodable, Encodable {
     public var kdfparams: KdfParamsV3
     public var mac: String
     public var version: String?
+    public init(ciphertext: String, cipher: String, cipherparams: CipherParamsV3, kdf: String, kdfparams: KdfParamsV3, mac: String, version: String?) {
+        self.ciphertext = ciphertext
+        self.cipher = cipher
+        self.cipherparams = cipherparams
+        self.kdf = kdf
+        self.kdfparams = kdfparams
+        self.mac = mac
+        self.version = version
+    }
+
 }
 
 public protocol AbstractKeystoreParams: Codable {
@@ -39,6 +61,10 @@ public protocol AbstractKeystoreParams: Codable {
 public struct PathAddressPair: Codable {
     public let path: String
     public let address: String
+    public init(path: String, address: String) {
+        self.path = path
+        self.address = address
+    }
 }
 
 public struct KeystoreParamsBIP32: AbstractKeystoreParams {
