@@ -5,8 +5,8 @@
 //
 //  Support for EIP-2930 transaction type by Mark Loit 2022
 
-import Foundation
 import BigInt
+import Foundation
 
 public struct EIP2930Envelope: EIP2718Envelope {
     public let type: TransactionType = .eip2930
@@ -46,7 +46,7 @@ public struct EIP2930Envelope: EIP2718Envelope {
 
     public var parameters: EthereumParameters {
         get {
-            return EthereumParameters(
+            EthereumParameters(
                 type: type,
                 to: to,
                 nonce: nonce,
@@ -103,17 +103,15 @@ extension EIP2930Envelope {
         let list = try? container.decode([AccessListEntry].self, forKey: .accessList)
         self.accessList = list ?? []
 
-        let toString = try? container.decode(String.self, forKey: .to)
-        switch toString {
-        case nil, "0x", "0x0":
-            self.to = EthereumAddress.contractDeploymentAddress()
-        default:
-            // the forced unwrap here is safe as we trap nil in the previous case
-            // swiftlint:disable force_unwrapping
-            guard let ethAddr = EthereumAddress(toString!) else { throw Web3Error.dataError }
-            // swiftlint:enable force_unwrapping
-            self.to = ethAddr
+        let ethAddr: EthereumAddress
+        if let toString = try? container.decode(String.self, forKey: .to), toString != "0x" && toString != "0x0"{
+            guard let eAddr = EthereumAddress(toString) else { throw Web3Error.dataError }
+            ethAddr = eAddr
+        } else {
+            ethAddr = EthereumAddress.contractDeploymentAddress()
         }
+        self.to = ethAddr
+
         self.value = try container.decodeHexIfPresent(BigUInt.self, forKey: .value) ?? 0
         self.gasPrice = try container.decodeHexIfPresent(BigUInt.self, forKey: .gasPrice) ?? 0
         self.gasLimit = try container.decodeHexIfPresent(BigUInt.self, forKey: .gas) ?? container.decodeHexIfPresent(BigUInt.self, forKey: .gasLimit) ?? 0
@@ -148,18 +146,15 @@ extension EIP2930Envelope {
         guard let rlpItem = totalItem[0] else { return nil }
         guard RlpKey.allCases.count == rlpItem.count else { return nil }
 
-        // we've validated the item count, so rlpItem[keyIndex] is guaranteed to return something not nil
-        // swiftlint:disable force_unwrapping
-        guard let chainData = rlpItem[RlpKey.chainId.rawValue]!.data else { return nil }
-        guard let nonceData = rlpItem[RlpKey.nonce.rawValue]!.data else { return nil }
-        guard let gasPriceData = rlpItem[RlpKey.gasPrice.rawValue]!.data else { return nil }
-        guard let gasLimitData = rlpItem[RlpKey.gasLimit.rawValue]!.data else { return nil }
-        guard let valueData = rlpItem[RlpKey.amount.rawValue]!.data else { return nil }
-        guard let transactionData = rlpItem[RlpKey.data.rawValue]!.data else { return nil }
-        guard let vData = rlpItem[RlpKey.sig_v.rawValue]!.data else { return nil }
-        guard let rData = rlpItem[RlpKey.sig_r.rawValue]!.data else { return nil }
-        guard let sData = rlpItem[RlpKey.sig_s.rawValue]!.data else { return nil }
-        // swiftlint:enable force_unwrapping
+        guard let chainData = rlpItem[RlpKey.chainId.rawValue]?.data else { return nil }
+        guard let nonceData = rlpItem[RlpKey.nonce.rawValue]?.data else { return nil }
+        guard let gasPriceData = rlpItem[RlpKey.gasPrice.rawValue]?.data else { return nil }
+        guard let gasLimitData = rlpItem[RlpKey.gasLimit.rawValue]?.data else { return nil }
+        guard let valueData = rlpItem[RlpKey.amount.rawValue]?.data else { return nil }
+        guard let transactionData = rlpItem[RlpKey.data.rawValue]?.data else { return nil }
+        guard let vData = rlpItem[RlpKey.sig_v.rawValue]?.data else { return nil }
+        guard let rData = rlpItem[RlpKey.sig_r.rawValue]?.data else { return nil }
+        guard let sData = rlpItem[RlpKey.sig_s.rawValue]?.data else { return nil }
 
         self.chainID = BigUInt(chainData)
         self.nonce = BigUInt(nonceData)
@@ -171,13 +166,11 @@ extension EIP2930Envelope {
         self.r = BigUInt(rData)
         self.s = BigUInt(sData)
 
-        // swiftlint:disable force_unwrapping
-        switch rlpItem[RlpKey.destination.rawValue]!.content {
-            // swiftlint:enable force_unwrapping
+        switch rlpItem[RlpKey.destination.rawValue]?.content {
         case .noItem:
             self.to = EthereumAddress.contractDeploymentAddress()
         case .data(let addressData):
-            if addressData.count == 0 {
+            if addressData.isEmpty {
                 self.to = EthereumAddress.contractDeploymentAddress()
             } else if addressData.count == 20 {
                 guard let addr = EthereumAddress(addressData) else { return nil }
@@ -185,24 +178,24 @@ extension EIP2930Envelope {
             } else { return nil }
         case .list:
             return nil
+        case .none:
+            return nil
         }
 
-        // swiftlint:disable force_unwrapping
-        switch rlpItem[RlpKey.accessList.rawValue]!.content {
-            // swiftlint:enable force_unwrapping
+        guard let keyAccessList = rlpItem[RlpKey.accessList.rawValue] else {
+            return nil
+        }
+        switch keyAccessList.content {
         case .noItem:
             self.accessList = []
         case .data:
             return nil
         case .list:
             // decode the list here
-            // swiftlint:disable force_unwrapping
-            let accessData = rlpItem[RlpKey.accessList.rawValue]!
-            // swiftlint:enable force_unwrapping
-            let itemCount = accessData.count ?? 0
+            let itemCount = keyAccessList.count ?? 0
             var newList: [AccessListEntry] = []
             for index in 0...(itemCount - 1) {
-                guard let itemData = accessData[index] else { return nil }
+                guard let itemData = keyAccessList[index] else { return nil }
                 guard let newItem = AccessListEntry(rlpItem: itemData)  else { return nil }
                 newList.append(newItem)
             }
@@ -210,9 +203,7 @@ extension EIP2930Envelope {
         }
     }
 
-    public init(to: EthereumAddress, nonce: BigUInt? = nil,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0,
-                parameters: EthereumParameters? = nil) {
+    public init(to: EthereumAddress, nonce: BigUInt? = nil, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0, parameters: EthereumParameters? = nil) {
         self.to = to
         self.nonce = nonce ?? parameters?.nonce ?? 0
         self.chainID = parameters?.chainID ?? 0
@@ -227,10 +218,7 @@ extension EIP2930Envelope {
     }
 
     // memberwise
-    public init(to: EthereumAddress, nonce: BigUInt = 0,
-                chainID: BigUInt = 0, value: BigUInt = 0, data: Data,
-                gasPrice: BigUInt = 0, gasLimit: BigUInt = 0, accessList: [AccessListEntry]? = nil,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
+    public init(to: EthereumAddress, nonce: BigUInt = 0, chainID: BigUInt = 0, value: BigUInt = 0, data: Data, gasPrice: BigUInt = 0, gasLimit: BigUInt = 0, accessList: [AccessListEntry]? = nil, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
         self.to = to
         self.nonce = nonce
         self.chainID = chainID
@@ -249,11 +237,15 @@ extension EIP2930Envelope {
         self.nonce = options.resolveNonce(self.nonce)
         self.gasPrice = options.resolveGasPrice(self.gasPrice)
         self.gasLimit = options.resolveGasLimit(self.gasLimit)
-        // swiftlint:disable force_unwrapping
-        if options.value != nil { self.value = options.value! }
-        if options.to != nil { self.to = options.to! }
-        if options.accessList != nil { self.accessList = options.accessList! }
-        // swiftlint:enable force_unwrapping
+        if let optValue = options.value {
+            self.value = optValue
+        }
+        if let opTo = options.to {
+            self.to = opTo
+        }
+        if let optAccessList = options.accessList {
+            self.accessList = optAccessList
+        }
     }
 
     public func encode(for type: EncodeType = .transaction) -> Data? {
@@ -261,8 +253,10 @@ extension EIP2930Envelope {
         let list = accessList.map { $0.encodeAsList() as AnyObject }
 
         switch type {
-        case .transaction: fields = [chainID, nonce, gasPrice, gasLimit, to.addressData, value, data, list, v, r, s] as [AnyObject]
-        case .signature: fields = [chainID, nonce, gasPrice, gasLimit, to.addressData, value, data, list] as [AnyObject]
+        case .transaction:
+            fields = [chainID, nonce, gasPrice, gasLimit, to.addressData, value, data, list, v, r, s] as [AnyObject]
+        case .signature:
+            fields = [chainID, nonce, gasPrice, gasLimit, to.addressData, value, data, list] as [AnyObject]
         }
         guard var result = RLP.encode(fields) else { return nil }
         result.insert(UInt8(self.type.rawValue), at: 0)
@@ -319,17 +313,15 @@ public struct AccessListEntry: CustomStringConvertible, Decodable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        let addrString = try? container.decode(String.self, forKey: .address)
-        switch addrString {
-        case nil, "0x", "0x0":
-            self.address = EthereumAddress.contractDeploymentAddress()
-        default:
-            // the forced unwrap here is safe as we trap nil in the previous case
-            // swiftlint:disable force_unwrapping
-            guard let ethAddr = EthereumAddress(addrString!) else { throw Web3Error.dataError }
-            // swiftlint:enable force_unwrapping
-            self.address = ethAddr
+        let ethAddr: EthereumAddress
+        if let addrString = try? container.decode(String.self, forKey: .address).lowercased(), addrString != "0x" && addrString != "0x0" {
+            guard let eAddr = EthereumAddress(addrString) else { throw Web3Error.dataError }
+            ethAddr = eAddr
+        } else {
+            ethAddr = EthereumAddress.contractDeploymentAddress()
         }
+        self.address = ethAddr
+
         self.storageKeys = []
         if let keyStrings = try? container.decode([String].self, forKey: .storageKeys) {
             for keyString in keyStrings {
@@ -349,13 +341,11 @@ public struct AccessListEntry: CustomStringConvertible, Decodable {
     public init?(rlpItem: RLP.RLPItem) {
         if rlpItem.count != RlpKey.total.rawValue { return nil }
 
-        // swiftlint:disable force_unwrapping
-        switch rlpItem[RlpKey.address.rawValue]!.content {
-            // swiftlint:enable force_unwrapping
-        case .noItem, .list:
+        switch rlpItem[RlpKey.address.rawValue]?.content {
+        case .noItem, .list, .none:
             return nil
         case .data(let addressData):
-            if addressData.count == 0 {
+            if addressData.isEmpty {
                 return nil
             } else if addressData.count == 20 {
                 guard let addr = EthereumAddress(addressData) else { return nil }
@@ -363,28 +353,26 @@ public struct AccessListEntry: CustomStringConvertible, Decodable {
             } else { return nil }
         }
 
-        // swiftlint:disable force_unwrapping
-        switch rlpItem[RlpKey.storageKeys.rawValue]!.content {
-            // swiftlint:enable force_unwrapping
+        switch rlpItem[RlpKey.storageKeys.rawValue]?.content {
         case .noItem:
             self.storageKeys = []
         case .data:
             return nil
         case .list:
             // decode the list here
-            // swiftlint:disable force_unwrapping
-            let keyData = rlpItem[RlpKey.storageKeys.rawValue]!
-            // swiftlint:enable force_unwrapping
-            let itemCount = keyData.count ?? 0
+            let keyData = rlpItem[RlpKey.storageKeys.rawValue]
+            let itemCount = keyData?.count ?? 0
             var newList: [BigUInt] = []
             for index in 0...(itemCount - 1) {
-                guard let keyItem = keyData[index] else { return nil }
+                guard let keyItem = keyData?[index] else { return nil }
                 guard let itemData = keyItem.data else { return nil }
                 if itemData.count != 32 { return nil }
                 let newItem = BigUInt(itemData)
                 newList.append(newItem)
             }
             self.storageKeys = newList
+        case .none:
+            return nil
         }
     }
 

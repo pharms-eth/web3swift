@@ -4,18 +4,19 @@
 //
 //  Additions to support new transaction types by Mark Loit March 2022
 
-import Foundation
 import BigInt
+import Foundation
 
 /// Global counter object to enumerate JSON RPC requests.
 public struct Counter {
     public static var counter = UInt64(1)
     public static var lockQueue = DispatchQueue(label: "counterQueue")
+
     public static func increment() -> UInt64 {
         var c: UInt64 = 0
         lockQueue.sync {
-            c = Counter.counter
-            Counter.counter = Counter.counter + 1
+            c = Self.counter
+            Self.counter += 1
         }
         return c
     }
@@ -44,13 +45,11 @@ public struct JSONRPCrequest: Encodable {
     }
 
     public var isValid: Bool {
-        get {
-            if self.method == nil {
-                return false
-            }
-            guard let method = self.method else {return false}
-            return method.requiredNumOfParameters == self.params?.params.count
+        if self.method == nil {
+            return false
         }
+        guard let method = self.method else {return false}
+        return method.requiredNumOfParameters == self.params?.params.count
     }
 }
 
@@ -65,7 +64,7 @@ public struct JSONRPCrequestBatch: Encodable {
 }
 
 /// JSON RPC response structure for serialization and deserialization purposes.
-public struct JSONRPCresponse: Decodable{
+public struct JSONRPCresponse: Decodable {
     public var id: Int
     public var jsonrpc = "2.0"
     public var result: Any?
@@ -73,10 +72,10 @@ public struct JSONRPCresponse: Decodable{
     public var message: String?
 
     enum JSONRPCresponseKeys: String, CodingKey {
-        case id = "id"
-        case jsonrpc = "jsonrpc"
-        case result = "result"
-        case error = "error"
+        case id
+        case jsonrpc
+        case result
+        case error
     }
 
     public init(id: Int, jsonrpc: String, result: Any?, error: ErrorMessage?) {
@@ -123,7 +122,7 @@ public struct JSONRPCresponse: Decodable{
             return
         }
         // TODO: refactor me
-        var result: Any? = nil
+        var result: Any?
         if let rawValue = try? container.decodeIfPresent(String.self, forKey: .result) {
             result = rawValue
         } else if let rawValue = try? container.decodeIfPresent(Int.self, forKey: .result) {
@@ -201,29 +200,22 @@ public struct JSONRPCresponse: Decodable{
 //            guard let value = self.result as? T else {return nil}
 //            return value
 //        }
+// swiftlint:disable indentation_width
         else if type == [BigUInt].self {
             guard let string = self.result as? [String] else {return nil}
-            let values = string.compactMap { (str) -> BigUInt? in
-                return BigUInt(str.stripHexPrefix(), radix: 16)
-            }
+            let values = string.compactMap { BigUInt($0.stripHexPrefix(), radix: 16) }
             return values as? T
         } else if type == [BigInt].self {
             guard let string = self.result as? [String] else {return nil}
-            let values = string.compactMap { (str) -> BigInt? in
-                return BigInt(str.stripHexPrefix(), radix: 16)
-            }
+            let values = string.compactMap { BigInt($0.stripHexPrefix(), radix: 16) }
             return values as? T
         } else if type == [Data].self {
             guard let string = self.result as? [String] else {return nil}
-            let values = string.compactMap { (str) -> Data? in
-                return Data.fromHex(str)
-            }
+            let values = string.compactMap { Data.fromHex($0) }
             return values as? T
         } else if type == [EthereumAddress].self {
             guard let string = self.result as? [String] else {return nil}
-            let values = string.compactMap { (str) -> EthereumAddress? in
-                return EthereumAddress(str, ignoreChecksum: true)
-            }
+            let values = string.compactMap { EthereumAddress($0, ignoreChecksum: true) }
             return values as? T
         }
         guard let value = self.result as? T  else {return nil}
@@ -277,7 +269,7 @@ public struct EventFilterParameters: Codable {
 }
 
 /// Raw JSON RCP 2.0 internal flattening wrapper.
-public struct JSONRPCparams: Encodable{
+public struct JSONRPCparams: Encodable {
     // TODO: Rewrite me to generic
     public var params = [Any]()
 

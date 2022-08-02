@@ -4,30 +4,23 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
-import PromiseKit
+import Foundation
 
 /// A web3 instance bound to provider. All further functionality is provided under web.*. namespaces.
-public class web3 {
+public class Web3 {
     public var provider: Web3Provider
-    public var transactionOptions: TransactionOptions = TransactionOptions.defaultOptions
+    public var transactionOptions: TransactionOptions = .defaultOptions
     public var defaultBlock = "latest"
-    public var requestDispatcher: JSONRPCrequestDispatcher
 
     /// Add a provider request to the dispatch queue.
-    public func dispatch(_ request: JSONRPCrequest) -> Promise<JSONRPCresponse> {
-        return self.requestDispatcher.addToQueue(request: request)
+    public func dispatch(_ request: JSONRPCrequest) async throws -> JSONRPCresponse {
+        try await provider.sendAsync(request)
     }
 
     /// Raw initializer using a Web3Provider protocol object, dispatch queue and request dispatcher.
-    public init(provider prov: Web3Provider, queue: OperationQueue? = nil, requestDispatcher: JSONRPCrequestDispatcher? = nil) {
+    public init(provider prov: Web3Provider) {
         provider = prov
-        if requestDispatcher == nil {
-            self.requestDispatcher = JSONRPCrequestDispatcher(provider: provider, queue: DispatchQueue.global(qos: .userInteractive), policy: .Batch(32))
-        } else {
-            self.requestDispatcher = requestDispatcher!
-        }
     }
 
     /// Keystore manager can be bound to Web3 instance. If some manager is bound all further account related functions, such
@@ -36,142 +29,153 @@ public class web3 {
         self.provider.attachedKeystoreManager = manager
     }
 
-    var ethInstance: web3.Eth?
+    var ethInstance: Web3.Eth?
 
     /// Public web3.eth.* namespace.
-    public var eth: web3.Eth {
-        if (self.ethInstance != nil) {
-            return self.ethInstance!
+    public var eth: Web3.Eth {
+        if let eInstance = self.ethInstance {
+            return eInstance
         }
-        self.ethInstance = web3.Eth(provider: self.provider, web3: self)
-        return self.ethInstance!
+        let eInstance = Web3.Eth(provider: self.provider, web3: self)
+        self.ethInstance = eInstance
+        return eInstance
     }
 
     public class Eth: TransactionOptionsInheritable {
         var provider: Web3Provider
         //  weak var web3: web3?
-        var web3: web3
+        var web3: Web3
         public var transactionOptions: TransactionOptions {
-            return self.web3.transactionOptions
+            self.web3.transactionOptions
         }
-        public init(provider prov: Web3Provider, web3 web3instance: web3) {
+
+        public init(provider prov: Web3Provider, web3 web3instance: Web3) {
             provider = prov
             web3 = web3instance
         }
     }
 
-    var personalInstance: web3.Personal?
+    var personalInstance: Web3.Personal?
 
     /// Public web3.personal.* namespace.
-    public var personal: web3.Personal {
-        if (self.personalInstance != nil) {
-            return self.personalInstance!
+    public var personal: Web3.Personal {
+        if let personalInstance = personalInstance {
+            return personalInstance
         }
-        self.personalInstance = web3.Personal(provider: self.provider, web3: self)
-        return self.personalInstance!
+        let pInstance = Web3.Personal(provider: self.provider, web3: self)
+        self.personalInstance = pInstance
+        return pInstance
     }
 
     public class Personal: TransactionOptionsInheritable {
         var provider: Web3Provider
         //        weak var web3: web3?
-        var web3: web3
+        var web3: Web3
         public var transactionOptions: TransactionOptions {
-            return self.web3.transactionOptions
+            self.web3.transactionOptions
         }
-        public init(provider prov: Web3Provider, web3 web3instance: web3) {
+
+        public init(provider prov: Web3Provider, web3 web3instance: Web3) {
             provider = prov
             web3 = web3instance
         }
     }
 
-    var txPoolInstance: web3.TxPool?
+    var txPoolInstance: Web3.TxPool?
 
     /// Public web3.personal.* namespace.
-    public var txPool: web3.TxPool {
-        if (self.txPoolInstance != nil) {
-            return self.txPoolInstance!
+    public var txPool: Web3.TxPool {
+        if let txInstance = self.txPoolInstance {
+            return txInstance
         }
-        self.txPoolInstance = web3.TxPool(provider: self.provider, web3: self)
-        return self.txPoolInstance!
+        let txInstance = Web3.TxPool(provider: self.provider, web3: self)
+        self.txPoolInstance = txInstance
+        return txInstance
     }
 
     public class TxPool: TransactionOptionsInheritable {
         var provider: Web3Provider
         //        weak var web3: web3?
-        var web3: web3
+        var web3: Web3
         public var transactionOptions: TransactionOptions {
-            return self.web3.transactionOptions
+            self.web3.transactionOptions
         }
-        public init(provider prov: Web3Provider, web3 web3instance: web3) {
+
+        public init(provider prov: Web3Provider, web3 web3instance: Web3) {
             provider = prov
             web3 = web3instance
         }
     }
 
-    var walletInstance: web3.Web3Wallet?
+    var walletInstance: Web3.Web3Wallet?
 
     /// Public web3.wallet.* namespace.
-    public var wallet: web3.Web3Wallet {
-        if (self.walletInstance != nil) {
-            return self.walletInstance!
+    public var wallet: Web3.Web3Wallet {
+        if let wInstance = self.walletInstance {
+            return wInstance
         }
-        self.walletInstance = web3.Web3Wallet(provider: self.provider, web3: self)
-        return self.walletInstance!
+        let wInstance = Web3.Web3Wallet(provider: self.provider, web3: self)
+        self.walletInstance = wInstance
+        return wInstance
     }
 
     public class Web3Wallet {
         var provider: Web3Provider
         //  weak var web3: web3?
-        var web3: web3
-        public init(provider prov: Web3Provider, web3 web3instance: web3) {
+        var web3: Web3
+
+        public init(provider prov: Web3Provider, web3 web3instance: Web3) {
             provider = prov
             web3 = web3instance
         }
     }
 
-    var browserFunctionsInstance: web3.BrowserFunctions?
+    var browserFunctionsInstance: Web3.BrowserFunctions?
 
     /// Public web3.browserFunctions.* namespace.
-    public var browserFunctions: web3.BrowserFunctions {
-        if (self.browserFunctionsInstance != nil) {
-            return self.browserFunctionsInstance!
+    public var browserFunctions: Web3.BrowserFunctions {
+        if let browsInstance = self.browserFunctionsInstance {
+            return browsInstance
         }
-        self.browserFunctionsInstance = web3.BrowserFunctions(provider: self.provider, web3: self)
-        return self.browserFunctionsInstance!
+        let browsInstance = Web3.BrowserFunctions(provider: self.provider, web3: self)
+        self.browserFunctionsInstance = browsInstance
+        return browsInstance
     }
 
     public class BrowserFunctions: TransactionOptionsInheritable {
         var provider: Web3Provider
         //        weak var web3: web3?
-        var web3: web3
+        var web3: Web3
         public var transactionOptions: TransactionOptions {
-            return self.web3.transactionOptions
+            self.web3.transactionOptions
         }
-        public init(provider prov: Web3Provider, web3 web3instance: web3) {
+
+        public init(provider prov: Web3Provider, web3 web3instance: Web3) {
             provider = prov
             web3 = web3instance
         }
     }
 
-    var eventLoopInstance: web3.Eventloop?
+    var eventLoopInstance: Web3.Eventloop?
 
     /// Public web3.browserFunctions.* namespace.
-    public var eventLoop: web3.Eventloop {
-        if (self.eventLoopInstance != nil) {
-            return self.eventLoopInstance!
+    public var eventLoop: Web3.Eventloop {
+        if let evInstance = self.eventLoopInstance {
+            return evInstance
         }
-        self.eventLoopInstance = web3.Eventloop(provider: self.provider, web3: self)
-        return self.eventLoopInstance!
+        let evInstance = Web3.Eventloop(provider: self.provider, web3: self)
+        self.eventLoopInstance = evInstance
+        return evInstance
     }
 
+    // swiftlint:disable nesting
     public class Eventloop: TransactionOptionsInheritable {
 
-        public typealias EventLoopCall = (web3) -> Void
-        public typealias EventLoopContractCall = (web3contract) -> Void
+        public typealias EventLoopCall = (Web3) async -> Void
+        public typealias EventLoopContractCall = (Web3contract) -> Void
 
         public struct MonitoredProperty {
             public var name: String
-            public var queue: DispatchQueue
             public var calledFunction: EventLoopCall
         }
 
@@ -183,17 +187,18 @@ public class web3 {
 
         var provider: Web3Provider
         //        weak var web3: web3?
-        var web3: web3
-        var timer: RepeatingTimer? = nil
+        var web3: Web3
+        var timer: RepeatingTimer?
 
         public var monitoredProperties: [MonitoredProperty] = [MonitoredProperty]()
         //  public var monitoredContracts: [MonitoredContract] = [MonitoredContract]()
         public var monitoredUserFunctions: [EventLoopRunnableProtocol] = [EventLoopRunnableProtocol]()
 
         public var transactionOptions: TransactionOptions {
-            return self.web3.transactionOptions
+            self.web3.transactionOptions
         }
-        public init(provider prov: Web3Provider, web3 web3instance: web3) {
+
+        public init(provider prov: Web3Provider, web3 web3instance: Web3) {
             provider = prov
             web3 = web3instance
         }
@@ -203,20 +208,17 @@ public class web3 {
 
     public typealias SubmissionHookFunction = ((EthereumTransaction, TransactionOptions)) -> (EthereumTransaction, TransactionOptions, Bool)
 
-    public typealias SubmissionResultHookFunction = (TransactionSendingResult) -> ()
+    public typealias SubmissionResultHookFunction = (TransactionSendingResult) -> Void
 
     public struct AssemblyHook {
-        public var queue: DispatchQueue
         public var function: AssemblyHookFunction
     }
 
     public struct SubmissionHook {
-        public var queue: DispatchQueue
         public var function: SubmissionHookFunction
     }
 
     public struct SubmissionResultHook {
-        public var queue: DispatchQueue
         public var function: SubmissionResultHookFunction
     }
 

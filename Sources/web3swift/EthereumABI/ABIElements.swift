@@ -2,10 +2,10 @@
 //  Created by Alex Vlasov on 25/10/2018.
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
-
-import Foundation
 import BigInt
+import Foundation
 
+// swiftlint:disable nesting
 public extension ABI {
     // JSON Decoding
     struct Input: Decodable {
@@ -104,6 +104,7 @@ public extension ABI {
             public let inputs: [InOut]
             public let constant: Bool
             public let payable: Bool
+
             public init(inputs: [InOut], constant: Bool, payable: Bool) {
                 self.inputs = inputs
                 self.constant = constant
@@ -157,11 +158,11 @@ public extension ABI {
         public struct EthError {
             public let name: String
             public let inputs: [Input]
-            
+
             public struct Input {
                 public let name: String
                 public let type: ParameterType
-                
+
                 public init(name: String, type: ParameterType) {
                     self.name = name
                     self.type = type
@@ -207,16 +208,16 @@ extension ABI.Element {
         case .function(let function):
             // the response size greater than equal 100 bytes, when read function aborted by "require" statement.
             // if "require" statement has no message argument, the response is empty (0 byte).
-            if(data.bytes.count >= 100) {
-                let check00_31 = BigUInt("08C379A000000000000000000000000000000000000000000000000000000000", radix: 16)!
-                let check32_63 = BigUInt("0000002000000000000000000000000000000000000000000000000000000000", radix: 16)!
+            if data.bytes.count >= 100 {
+                let check00_31 = BigUInt("08C379A000000000000000000000000000000000000000000000000000000000", radix: 16)
+                let check32_63 = BigUInt("0000002000000000000000000000000000000000000000000000000000000000", radix: 16)
 
                 // check data[00-31] and data[32-63]
                 if check00_31 == BigUInt(data[0...31]) && check32_63 == BigUInt(data[32...63]) {
                     // data.bytes[64-67] contains the length of require message
-                    let len = (Int(data.bytes[64])<<24) | (Int(data.bytes[65])<<16) | (Int(data.bytes[66])<<8) | Int(data.bytes[67])
+                    let len = (Int(data.bytes[64]) << 24) | (Int(data.bytes[65]) << 16) | (Int(data.bytes[66]) << 8) | Int(data.bytes[67])
 
-                    let message = String(bytes: data.bytes[68..<(68+len)], encoding: .utf8)!
+                    let message = String(bytes: data.bytes[68..<(68 + len)], encoding: .utf8) ?? ""
 
                     print("read function aborted by require statement: \(message)")
 
@@ -230,7 +231,7 @@ extension ABI.Element {
                     for i in 0 ..< function.outputs.count {
                         let name = "\(i)"
                         returnArray[name] = function.outputs[i].type.emptyValue
-                        if function.outputs[i].name != "" {
+                        if !function.outputs[i].name.isEmpty {
                             returnArray[function.outputs[i].name] = function.outputs[i].type.emptyValue
                         }
                     }
@@ -239,28 +240,28 @@ extension ABI.Element {
                 }
             }
             // the "require" statement with no message argument will be caught here
-            if (data.count == 0 && function.outputs.count == 1) {
+            if data.isEmpty && function.outputs.count == 1 {
                 let name = "0"
                 let value = function.outputs[0].type.emptyValue
                 var returnArray = [String: Any]()
                 returnArray[name] = value
-                if function.outputs[0].name != "" {
+                if !function.outputs[0].name.isEmpty {
                     returnArray[function.outputs[0].name] = value
                 }
                 return returnArray
             }
 
-            guard function.outputs.count*32 <= data.count else {return nil}
+            guard function.outputs.count * 32 <= data.count else {return nil}
             var returnArray = [String: Any]()
             var i = 0
             guard let values = ABIDecoder.decode(types: function.outputs, data: data) else {return nil}
             for output in function.outputs {
                 let name = "\(i)"
                 returnArray[name] = values[i]
-                if output.name != "" {
+                if !output.name.isEmpty {
                     returnArray[output.name] = values[i]
                 }
-                i = i + 1
+                i += 1
             }
             // set a flag to detect the request succeeded
             returnArray["_success"] = true
@@ -274,7 +275,7 @@ extension ABI.Element {
 
     public func decodeInputData(_ rawData: Data) -> [String: Any]? {
         var data = rawData
-        var sig: Data? = nil
+        var sig: Data?
         switch rawData.count % 32 {
         case 0:
             break
@@ -286,28 +287,28 @@ extension ABI.Element {
         }
         switch self {
         case .constructor(let function):
-            if (data.count == 0 && function.inputs.count == 1) {
+            if data.isEmpty && function.inputs.count == 1 {
                 let name = "0"
                 let value = function.inputs[0].type.emptyValue
                 var returnArray = [String: Any]()
                 returnArray[name] = value
-                if function.inputs[0].name != "" {
+                if !function.inputs[0].name.isEmpty {
                     returnArray[function.inputs[0].name] = value
                 }
                 return returnArray
             }
 
-            guard function.inputs.count*32 <= data.count else {return nil}
+            guard function.inputs.count * 32 <= data.count else {return nil}
             var returnArray = [String: Any]()
             var i = 0
             guard let values = ABIDecoder.decode(types: function.inputs, data: data) else {return nil}
             for input in function.inputs {
                 let name = "\(i)"
                 returnArray[name] = values[i]
-                if input.name != "" {
+                if !input.name.isEmpty {
                     returnArray[input.name] = values[i]
                 }
-                i = i + 1
+                i += 1
             }
             return returnArray
         case .event(_):
@@ -318,28 +319,28 @@ extension ABI.Element {
             if sig != nil && sig != function.methodEncoding {
                 return nil
             }
-            if (data.count == 0 && function.inputs.count == 1) {
+            if data.isEmpty && function.inputs.count == 1 {
                 let name = "0"
                 let value = function.inputs[0].type.emptyValue
                 var returnArray = [String: Any]()
                 returnArray[name] = value
-                if function.inputs[0].name != "" {
+                if !function.inputs[0].name.isEmpty {
                     returnArray[function.inputs[0].name] = value
                 }
                 return returnArray
             }
 
-            guard function.inputs.count*32 <= data.count else {return nil}
+            guard function.inputs.count * 32 <= data.count else {return nil}
             var returnArray = [String: Any]()
             var i = 0
             guard let values = ABIDecoder.decode(types: function.inputs, data: data) else {return nil}
             for input in function.inputs {
                 let name = "\(i)"
                 returnArray[name] = values[i]
-                if input.name != "" {
+                if !input.name.isEmpty {
                     returnArray[input.name] = values[i]
                 }
-                i = i + 1
+                i += 1
             }
             return returnArray
         case .receive(_):
@@ -356,5 +357,3 @@ extension ABI.Element.Event {
         return eventContent
     }
 }
-
-

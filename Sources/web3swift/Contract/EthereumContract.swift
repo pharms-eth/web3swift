@@ -3,25 +3,21 @@
 //  Copyright © 2018 Alexander Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 public struct EthereumContract: ContractProtocol {
     public var transactionOptions: TransactionOptions? = TransactionOptions.defaultOptions
-    public var address: EthereumAddress? = nil
+    public var address: EthereumAddress?
 
     var _abi: [ABI.Element]
 
     public var allEvents: [String] {
-        return events.keys.compactMap({ (s) -> String in
-            return s
-        })
+        events.keys.compactMap { $0 }
     }
 
     public var allMethods: [String] {
-        return methods.keys.compactMap({ (s) -> String in
-            return s
-        })
+        methods.keys.compactMap { $0 }
     }
 
     public struct EventFilter {
@@ -44,7 +40,7 @@ public struct EthereumContract: ContractProtocol {
     }
 
     public var constructor: ABI.Element? {
-        var toReturn: ABI.Element? = nil
+        var toReturn: ABI.Element?
         for m in self._abi {
             if toReturn != nil {
                 break
@@ -52,7 +48,6 @@ public struct EthereumContract: ContractProtocol {
             switch m {
             case .constructor(_):
                 toReturn = m
-                break
             default:
                 continue
             }
@@ -80,17 +75,16 @@ public struct EthereumContract: ContractProtocol {
 
     public init?(_ abiString: String, at: EthereumAddress? = nil) {
         do {
-            let jsonData = abiString.data(using: .utf8)
-            let abi = try JSONDecoder().decode([ABI.Record].self, from: jsonData!)
-            let abiNative = try abi.map({ (record) -> ABI.Element in
-                return try record.parse()
-            })
+            guard let jsonData = abiString.data(using: .utf8) else {
+                return nil
+            }
+            let abi = try JSONDecoder().decode([ABI.Record].self, from: jsonData)
+            let abiNative = try abi.map { try $0.parse() }
             _abi = abiNative
             if at != nil {
                 self.address = at
             }
-        }
-        catch{
+        } catch {
             return nil
         }
     }
@@ -105,7 +99,7 @@ public struct EthereumContract: ContractProtocol {
     }
 
     public func deploy(bytecode: Data, parameters: [AnyObject] = [AnyObject](), extraData: Data = Data()) -> EthereumTransaction? {
-        let to: EthereumAddress = EthereumAddress.contractDeploymentAddress()
+        let to = EthereumAddress.contractDeploymentAddress()
         guard let constructor = self.constructor else {return nil}
         guard let encodedData = constructor.encodeParameters(parameters) else {return nil}
         var fullData = bytecode
@@ -122,15 +116,13 @@ public struct EthereumContract: ContractProtocol {
     public func method(_ method: String = "fallback", parameters: [AnyObject] = [AnyObject](), extraData: Data = Data()) -> EthereumTransaction? {
         guard let to = self.address else {return nil}
 
-        if (method == "fallback") {
+        if method == "fallback" {
             let params = EthereumParameters(gasLimit: BigUInt(0), gasPrice: BigUInt(0))
             let transaction = EthereumTransaction(to: to, value: BigUInt(0), data: extraData, parameters: params)
 
             return transaction
         }
-        let foundMethod = self.methods.filter { (key, value) -> Bool in
-            return key == method
-        }
+        let foundMethod = self.methods.filter { $0.key == method }
         guard foundMethod.count == 1 else {return nil}
         let abiMethod = foundMethod[method]
         guard let encodedData = abiMethod?.encodeParameters(parameters) else {return nil}
@@ -141,24 +133,21 @@ public struct EthereumContract: ContractProtocol {
 
     public func parseEvent(_ eventLog: EventLog) -> (eventName: String?, eventData: [String: Any]?) {
         for (eName, ev) in self.events {
-            if (!ev.anonymous) {
+            if !ev.anonymous {
                 if eventLog.topics[0] != ev.topic {
                     continue
-                }
-                else {
+                } else {
                     let logTopics = eventLog.topics
                     let logData = eventLog.data
-                    let parsed = ev.decodeReturnedLogs(eventLogTopics: logTopics, eventLogData: logData)
-                    if parsed != nil {
-                        return (eName, parsed!)
+                    if let parsed = ev.decodeReturnedLogs(eventLogTopics: logTopics, eventLogData: logData) {
+                        return (eName, parsed)
                     }
                 }
             } else {
                 let logTopics = eventLog.topics
                 let logData = eventLog.data
-                let parsed = ev.decodeReturnedLogs(eventLogTopics: logTopics, eventLogData: logData)
-                if parsed != nil {
-                    return (eName, parsed!)
+                if let parsed = ev.decodeReturnedLogs(eventLogTopics: logTopics, eventLogData: logData) {
+                    return (eName, parsed)
                 }
             }
         }
@@ -201,7 +190,7 @@ public struct EthereumContract: ContractProtocol {
     public func decodeInputData(_ data: Data) -> [String: Any]? {
         guard data.count % 32 == 4 else {return nil}
         let methodSignature = data[0..<4]
-        let foundFunction = self._abi.filter { (m) -> Bool in
+        let foundFunction = self._abi.filter { m -> Bool in
             switch m {
             case .function(let function):
                 return function.methodEncoding == methodSignature

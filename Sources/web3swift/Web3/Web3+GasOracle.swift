@@ -6,20 +6,20 @@
 //  Copyright © 2022 web3swift. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
 extension Web3 {
     /// Oracle is the class to do a transaction fee suggestion
-    final public class Oracle {
+    public final class Oracle {
 
         /// Web3 provider by which accessing to the blockchain
-        private let web3Provider: web3
+        private let web3Provider: Web3
 
         private var feeHistory: FeeHistory?
 
         /// Ethereum scope shortcut
-        private var eth: web3.Eth { web3Provider.eth }
+        private var eth: Web3.Eth { web3Provider.eth }
 
         /// Block to start getting history backward
         var block: BlockNumber
@@ -41,20 +41,19 @@ extension Web3 {
 
         // TODO: Disabled until 3.0 version, coz will be enabled from 3.0.0.
 //        var forceDropCache = false
-
+// swiftlint:disable indentation_width
         /// Oracle initializer
         /// - Parameters:
         ///   - provider: Web3 Ethereum provider
         ///   - block: Number of block from which counts starts backward
         ///   - blockCount: Count of block to calculate statistics
         ///   - percentiles: Percentiles of fees to which result of predictions will be split in
-        public init(_ provider: web3, block: BlockNumber = .latest, blockCount: BigUInt = 20, percentiles: [Double] = [25, 50, 75]) {
+        public init(_ provider: Web3, block: BlockNumber = .latest, blockCount: BigUInt = 20, percentiles: [Double] = [25, 50, 75]) {
             self.web3Provider = provider
             self.block = block
             self.blockCount = blockCount
             self.percentiles = percentiles
         }
-
 
         /// Returning one dimensional array from two dimensional array
         ///
@@ -67,9 +66,7 @@ extension Web3 {
         private func soft(twoDimentsion array: [[BigUInt]]) -> [BigUInt] {
             array.compactMap { percentileArray -> [BigUInt]? in
                 guard !percentileArray.isEmpty else { return nil }
-                // swiftlint:disable force_unwrapping
                 return [percentileArray.mean()!]
-                // swiftlint:enable force_unwrapping
             }
             .flatMap { $0 }
         }
@@ -83,25 +80,25 @@ extension Web3 {
             }
         }
 
-        private func suggestGasValues() throws -> FeeHistory {
+        private func suggestGasValues() async throws -> FeeHistory {
             // This is some kind of cache.
             // It stores about 9 seconds, than it rewrites it with newer data.
             // TODO: Disabled until 3.0 version, coz `distance` available from iOS 13.
 //            guard feeHistory == nil, forceDropCache, feeHistory!.timestamp.distance(to: Date()) > cacheTimeout else { return feeHistory! }
 
-            return try eth.feeHistory(blockCount: blockCount, block: block.hexValue, percentiles: percentiles)
+            return try await eth.feeHistory(blockCount: blockCount, block: block.hexValue, percentiles: percentiles)
         }
 
         /// Suggesting tip values
         /// - Returns: `[percentile_1, percentile_2, percentile_3, ...].count == self.percentile.count`
         /// by default there's 3 percentile.
-        private func suggestTipValue() throws -> [BigUInt] {
+        private func suggestTipValue() async throws -> [BigUInt] {
             var rearrengedArray: [[BigUInt]] = []
 
             /// reaarange `[[min, middle, max]]` to `[[min], [middle], [max]]`
-            try suggestGasValues().reward
+            try await suggestGasValues().reward
                 .forEach { percentiles in
-                    percentiles.enumerated().forEach { (index, percentile) in
+                    percentiles.enumerated().forEach { index, percentile in
                         /// if `rearrengedArray` have not that enough items
                         /// as `percentiles` current item index
                         if rearrengedArray.endIndex <= index {
@@ -116,24 +113,43 @@ extension Web3 {
             return soft(twoDimentsion: rearrengedArray)
         }
 
-        private func suggestBaseFee() throws -> [BigUInt] {
-            self.feeHistory = try suggestGasValues()
-            return calculatePercentiles(for: feeHistory!.baseFeePerGas)
+        private func suggestBaseFee() async throws -> [BigUInt] {
+            let feeValue = try await suggestGasValues()
+            self.feeHistory = feeValue
+            return calculatePercentiles(for: feeValue.baseFeePerGas)
         }
 
-        private func suggestGasFeeLegacy() throws -> [BigUInt] {
+        private func suggestGasFeeLegacy() async throws -> [BigUInt] {
             var latestBlockNumber: BigUInt = 0
             switch block {
-            case .latest: latestBlockNumber = try eth.getBlockNumber()
-            case let .exact(number): latestBlockNumber = number
+            case .latest:
+                latestBlockNumber = try await eth.getBlockNumber()
+            case let .exact(number):
+                latestBlockNumber = number
             }
 
             guard latestBlockNumber != 0 else { return [] }
 
             // TODO: Make me work with cache
-            let lastNthBlockGasPrice = try (latestBlockNumber - blockCount ... latestBlockNumber)
-                .map { try eth.getBlockByNumber($0, fullTransactions: true) }
-                .flatMap { b -> [EthereumTransaction] in
+            let blocks = try await withThrowingTaskGroup(of: Block.self, returning: [Block].self) { group in
+
+                (latestBlockNumber - blockCount ... latestBlockNumber)
+                    .forEach { transaction in
+                        group.addTask {
+                            try await self.eth.getBlockByNumber(transaction, fullTransactions: true)
+                        }
+                    }
+
+                var collected = [Block]()
+
+                for try await value in group {
+                    collected.append(value)
+                }
+
+                return collected
+            }
+
+            let lastNthBlockGasPrice = blocks.flatMap { b -> [EthereumTransaction] in
                     b.transactions.compactMap { t -> EthereumTransaction? in
                         guard case let .transaction(transaction) = t else { return nil }
                         return transaction
@@ -152,8 +168,8 @@ public extension Web3.Oracle {
     ///
     /// - Returns: `[percentile_1, percentile_2, percentile_3, ...].count == self.percentile.count`
     /// empty array if failed to predict. By default there's 3 percentile.
-    var baseFeePercentiles: [BigUInt] {
-        guard let value = try? suggestBaseFee() else { return [] }
+    func baseFeePercentiles() async -> [BigUInt] {
+        guard let value = try? await suggestBaseFee() else { return [] }
         return value
     }
 
@@ -162,8 +178,8 @@ public extension Web3.Oracle {
     ///
     /// - Returns: `[percentile_1, percentile_2, percentile_3, ...].count == self.percentile.count`
     /// empty array if failed to predict. By default there's 3 percentile.
-    var tipFeePercentiles: [BigUInt] {
-        guard let value = try? suggestTipValue() else { return [] }
+    func tipFeePercentiles() async -> [BigUInt] {
+        guard let value = try? await suggestTipValue() else { return [] }
         return value
     }
 
@@ -172,13 +188,13 @@ public extension Web3.Oracle {
     ///
     /// - Returns: `[percentile_1, percentile_2, percentile_3, ...].count == self.percentile.count`
     /// nil if failed to predict. By default there's 3 percentile.
-    var bothFeesPercentiles: (baseFee: [BigUInt], tip: [BigUInt])? {
+    func bothFeesPercentiles() async -> (baseFee: [BigUInt], tip: [BigUInt])? {
         var baseFeeArr: [BigUInt] = []
         var tipArr: [BigUInt] = []
-        if let baseFee = try? suggestBaseFee() {
+        if let baseFee = try? await suggestBaseFee() {
             baseFeeArr = baseFee
         }
-        if let tip = try? suggestTipValue() {
+        if let tip = try? await suggestTipValue() {
             tipArr = tip
         }
         return (baseFee: baseFeeArr, tip: tipArr)
@@ -189,8 +205,8 @@ public extension Web3.Oracle {
     ///
     /// - Returns: `[percentile_1, percentile_2, percentile_3, ...].count == self.percentile.count`
     /// empty array if failed to predict. By default there's 3 percentile.
-    var gasPriceLegacyPercentiles: [BigUInt] {
-        guard let value = try? suggestGasFeeLegacy() else { return [] }
+    func gasPriceLegacyPercentiles() async -> [BigUInt] {
+        guard let value = try? await suggestGasFeeLegacy() else { return [] }
         return value
     }
 }
@@ -223,7 +239,6 @@ extension Web3.Oracle.FeeHistory: Decodable {
     }
 }
 
-
 public extension Web3 {
     /// Enum for convenient type safe work with block number
     enum BlockNumber {
@@ -237,8 +252,10 @@ public extension Web3 {
         /// Could be `hexString` either `latest`
         internal var hexValue: String {
             switch self {
-            case .latest: return "latest"
-            case let .exact(number): return String(number, radix: 16).addHexPrefix()
+            case .latest:
+                return "latest"
+            case let .exact(number):
+                return String(number, radix: 16).addHexPrefix()
             }
         }
     }

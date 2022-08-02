@@ -8,11 +8,11 @@ import Foundation
 
 extension String {
     var fullRange: Range<Index> {
-        return startIndex..<endIndex
+        startIndex..<endIndex
     }
 
     var fullNSRange: NSRange {
-        return NSRange(fullRange, in: self)
+        NSRange(fullRange, in: self)
     }
 
     func index(of char: Character) -> Index? {
@@ -28,7 +28,7 @@ extension String {
             .map { $0 }
             .split(intoChunksOf: chunkSize)
         splittedString.forEach {
-            output.append($0.map { String($0) }.joined(separator: ""))
+            output.append($0.map { String($0) }.joined())
         }
         return output
     }
@@ -51,7 +51,8 @@ extension String {
         return String(self[start..<end])
     }
 
-    func leftPadding(toLength: Int, withPad character: Character) -> String {
+    public func leftPadding(toLength: Int, withPad character: Character) -> String {
+
         let stringLength = self.count
         if stringLength < toLength {
             return String(repeatElement(character, count: toLength - stringLength)) + self
@@ -67,7 +68,7 @@ extension String {
     }
 
     func hasHexPrefix() -> Bool {
-        return self.hasPrefix("0x")
+        self.hasPrefix("0x")
     }
 
     func stripHexPrefix() -> String {
@@ -78,7 +79,7 @@ extension String {
         return self
     }
 
-    func addHexPrefix() -> String {
+    public func addHexPrefix() -> String {
         if !self.hasPrefix("0x") {
             return "0x" + self
         }
@@ -91,16 +92,18 @@ extension String {
         let match = matcher.captureGroups(string: hex, options: NSRegularExpression.MatchingOptions.anchored)
         guard let prefix = match["prefix"] else {return nil}
         guard let end = match["end"] else {return nil}
-        if (end != "") {
+        if !end.isEmpty {
             return prefix + end
         }
         return "0x0"
     }
 
+    // TODO: replace using Swift String
+    // swiftlint:disable legacy_objc_type
     func matchingStrings(regex: String) -> [[String]] {
         guard let regex = try? NSRegularExpression(pattern: regex, options: []) else { return [] }
         let nsString = self as NSString
-        let results  = regex.matches(in: self, options: [], range: NSMakeRange(0, nsString.length))
+        let results  = regex.matches(in: self, options: [], range: NSRange(location: 0, length: nsString.length))
         return results.map { result in
             (0..<result.numberOfRanges).map { result.range(at: $0).location != NSNotFound
                 ? nsString.substring(with: result.range(at: $0))
@@ -120,18 +123,34 @@ extension String {
     }
 
     var asciiValue: Int {
-        get {
-            let s = self.unicodeScalars
-            return Int(s[s.startIndex].value)
+        let s = self.unicodeScalars
+        return Int(s[s.startIndex].value)
+    }
+
+/// Splits a string into groups of `every` n characters, grouping from left-to-right by default. If `backwards` is true, right-to-left.
+    public func split(every: Int, backwards: Bool = false) -> [String] {
+        var result = [String]()
+
+        for i in stride(from: 0, to: self.count, by: every) {
+            switch backwards {
+            case true:
+                let endIndex = self.index(self.endIndex, offsetBy: -i)
+                let startIndex = self.index(endIndex, offsetBy: -every, limitedBy: self.startIndex) ?? self.startIndex
+                result.insert(String(self[startIndex..<endIndex]), at: 0)
+            case false:
+                let startIndex = self.index(self.startIndex, offsetBy: i)
+                let endIndex = self.index(startIndex, offsetBy: every, limitedBy: self.endIndex) ?? self.endIndex
+                result.append(String(self[startIndex..<endIndex]))
+            }
         }
+
+        return result
     }
 }
 
 extension Character {
     var asciiValue: Int {
-        get {
-            let s = String(self).unicodeScalars
-            return Int(s[s.startIndex].value)
-        }
+        let s = String(self).unicodeScalars
+        return Int(s[s.startIndex].value)
     }
 }

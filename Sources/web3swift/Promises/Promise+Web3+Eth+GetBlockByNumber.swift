@@ -4,33 +4,28 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
-import PromiseKit
+import Foundation
 
-extension web3.Eth {
-    public func getBlockByNumberPromise(_ number: UInt64, fullTransactions: Bool = false) -> Promise<Block> {
+extension Web3.Eth {
+    public func blockBy(number: UInt64, fullTransactions: Bool = false) async throws -> Block {
         let block = String(number, radix: 16).addHexPrefix()
-        return getBlockByNumberPromise(block, fullTransactions: fullTransactions)
+        return try await blockBy(number: block, fullTransactions: fullTransactions)
     }
 
-    public func getBlockByNumberPromise(_ number: BigUInt, fullTransactions: Bool = false) -> Promise<Block> {
+    public func blockBy(number: BigUInt, fullTransactions: Bool = false) async throws -> Block {
         let block = String(number, radix: 16).addHexPrefix()
-        return getBlockByNumberPromise(block, fullTransactions: fullTransactions)
+        return try await blockBy(number: block, fullTransactions: fullTransactions)
     }
 
-    public func getBlockByNumberPromise(_ number: String, fullTransactions: Bool = false) -> Promise<Block> {
+    public func blockBy(number: String, fullTransactions: Bool = false) async throws -> Block {
         let request = JSONRPCRequestFabric.prepareRequest(.getBlockByNumber, parameters: [number, fullTransactions])
-        let rp = web3.dispatch(request)
-        let queue = web3.requestDispatcher.queue
-        return rp.map(on: queue) { response in
-            guard let value: Block = response.getValue() else {
-                if response.error != nil {
-                    throw Web3Error.nodeError(desc: response.error!.message)
-                }
-                throw Web3Error.nodeError(desc: "Invalid value from Ethereum node")
-            }
-            return value
+        let response = try await web3.dispatch(request)
+
+        guard let value: Block = response.getValue() else {
+            throw Web3Error.nodeError(desc: response.error?.message ?? "Invalid value from Ethereum node")
         }
+        return value
+
     }
 }

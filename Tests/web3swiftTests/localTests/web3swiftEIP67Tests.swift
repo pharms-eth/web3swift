@@ -13,7 +13,7 @@ import BigInt
 class web3swiftEIP67Tests: XCTestCase {
     
     func testEIP67encoding() throws {
-        var eip67Data = Web3.EIP67Code.init(address: EthereumAddress("0xe22b8979739D724343bd002F9f432F5990879901")!)
+        var eip67Data = EIP67Code(address: EthereumAddress("0xe22b8979739D724343bd002F9f432F5990879901")!)
         eip67Data.gasLimit = BigUInt(21000)
         eip67Data.amount = BigUInt("1000000000000000000")
         //        eip67Data.data =
@@ -22,7 +22,7 @@ class web3swiftEIP67Tests: XCTestCase {
     }
     
     func testEIP67codeGeneration() throws {
-        var eip67Data = Web3.EIP67Code.init(address: EthereumAddress("0xe22b8979739D724343bd002F9f432F5990879901")!)
+        var eip67Data = EIP67Code(address: EthereumAddress("0xe22b8979739D724343bd002F9f432F5990879901")!)
         eip67Data.gasLimit = BigUInt(21000)
         eip67Data.amount = BigUInt("1000000000000000000")
         //        eip67Data.data =
@@ -31,7 +31,7 @@ class web3swiftEIP67Tests: XCTestCase {
     }
     
     func testEIP67decoding() throws {
-        var eip67Data = Web3.EIP67Code.init(address: EthereumAddress("0xe22b8979739D724343bd002F9f432F5990879901")!)
+        var eip67Data = EIP67Code(address: EthereumAddress("0xe22b8979739D724343bd002F9f432F5990879901")!)
         eip67Data.gasLimit = BigUInt(21000)
         eip67Data.amount = BigUInt("1000000000000000000")
         //        eip67Data.data =

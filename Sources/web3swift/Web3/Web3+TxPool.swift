@@ -4,22 +4,22 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
-extension web3.TxPool {
-    public func getInspect() throws -> [String: [String: [String: String]]] {
-        let result = try self.getInspectPromise().wait()
+extension Web3.TxPool {
+    public func getInspect() async throws -> [String: [String: [String: String]]] {
+        let result = try await self.txPoolInspect()
         return result
     }
 
-    public func getStatus() throws -> TxPoolStatus {
-        let result = try self.getStatusPromise().wait()
+    public func getStatus() async throws -> TxPoolStatus {
+        let result = try await self.txPoolStatus()
         return result
     }
 
-    public func getContent() throws -> TxPoolContent {
-        let result = try self.getContentPromise().wait()
+    public func getContent() async throws -> TxPoolContent {
+        let result = try await self.txPoolContent()
         return result
     }
 }

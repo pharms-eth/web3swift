@@ -4,45 +4,41 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
-import PromiseKit
+import Foundation
 
 extension Web3.Utils {
 
-    fileprivate typealias AssemblyHook = web3.AssemblyHook
-    fileprivate typealias SubmissionResultHook = web3.SubmissionResultHook
+    fileprivate typealias AssemblyHook = Web3.AssemblyHook
+    fileprivate typealias SubmissionResultHook = Web3.SubmissionResultHook
 
     public class NonceMiddleware: EventLoopRunnableProtocol {
-        var web3: web3?
+        var web3: Web3?
         var nonceLookups: [EthereumAddress: BigUInt] = [EthereumAddress: BigUInt]()
         public var name: String = "Nonce lookup middleware"
-        public let queue: DispatchQueue = DispatchQueue(label: "Nonce middleware queue")
+        public let queue = DispatchQueue(label: "Nonce middleware queue")
         public var synchronizationPeriod: TimeInterval = 300.0 // 5 minutes
-        var lastSyncTime: Date = Date()
+        var lastSyncTime = Date()
 
-        public func functionToRun() {
+        public func functionToRun() async {
             guard let w3 = self.web3 else {return}
-            var allPromises = [Promise<BigUInt>]()
-            allPromises.reserveCapacity(self.nonceLookups.keys.count)
-            let knownKeys = Array(self.nonceLookups.keys)
-            for k in knownKeys {
-                let promise = w3.eth.getTransactionCountPromise(address: k, onBlock: "latest")
-                allPromises.append(promise)
-            }
-            when(resolved: allPromises).done(on: w3.requestDispatcher.queue) {results in
-                self.queue.async {
-                    var i = 0
-                    for res in results {
-                        switch res {
-                        case .fulfilled(let newNonce):
-                            let key = knownKeys[i]
-                            self.nonceLookups[key] = newNonce
-                            i = i + 1
-                        default:
-                            i = i + 1
-                        }
+
+            let knownKeys = Array(nonceLookups.keys)
+
+            await withTaskGroup(of: BigUInt?.self, returning: Void.self) { group -> Void in
+
+                knownKeys.forEach { key in
+                    group.addTask {
+                        try? await w3.eth.getTransactionCount(address: key, onBlock: "latest")
                     }
+                }
+
+                var i = 0
+
+                for await value in group {
+                    let key = knownKeys[i]
+                    self.nonceLookups[key] = value
+                    i += 1
                 }
 
             }
@@ -52,6 +48,7 @@ extension Web3.Utils {
 
         }
 
+        // swiftlint:disable large_tuple
         func preAssemblyFunction(tx: EthereumTransaction, contract: EthereumContract, transactionOptions: TransactionOptions) -> (EthereumTransaction, EthereumContract, TransactionOptions, Bool) {
             guard let from = transactionOptions.from else {
                 // do nothing
@@ -95,12 +92,12 @@ extension Web3.Utils {
             return
         }
 
-        public func attach(_ web3: web3) {
+        public func attach(_ web3: Web3) {
             self.web3 = web3
             web3.eventLoop.monitoredUserFunctions.append(self)
-            let preHook = AssemblyHook(queue: web3.requestDispatcher.queue, function: self.preAssemblyFunction)
+            let preHook = AssemblyHook(function: self.preAssemblyFunction)
             web3.preAssemblyHooks.append(preHook)
-            let postHook = SubmissionResultHook(queue: web3.requestDispatcher.queue, function: self.postSubmissionFunction)
+            let postHook = SubmissionResultHook(function: self.postSubmissionFunction)
             web3.postSubmissionHooks.append(postHook)
         }
 

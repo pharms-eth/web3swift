@@ -11,6 +11,7 @@ import Foundation
 
 public struct RIPEMD160 {
 
+    // swiftlint:disable large_tuple
     private var MDbuf: (UInt32, UInt32, UInt32, UInt32, UInt32)
     private var buffer: Data
     private var count: Int64 // Total # of bytes processed.
@@ -28,29 +29,29 @@ public struct RIPEMD160 {
         /* ROL(x, n) cyclically rotates x over n bits to the left */
         /* x must be of an unsigned 32 bits type and 0 <= n < 32. */
         func ROL(_ x: UInt32, _ n: UInt32) -> UInt32 {
-            return (x << n) | (x >> (32 - n))
+            (x << n) | (x >> (32 - n))
         }
 
         /* the five basic functions F(), G() and H() */
 
         func F(_ x: UInt32, _ y: UInt32, _ z: UInt32) -> UInt32 {
-            return x ^ y ^ z
+            x ^ y ^ z
         }
 
         func G(_ x: UInt32, _ y: UInt32, _ z: UInt32) -> UInt32 {
-            return (x & y) | (~x & z)
+            (x & y) | (~x & z)
         }
 
         func H(_ x: UInt32, _ y: UInt32, _ z: UInt32) -> UInt32 {
-            return (x | ~y) ^ z
+            (x | ~y) ^ z
         }
 
         func I(_ x: UInt32, _ y: UInt32, _ z: UInt32) -> UInt32 {
-            return (x & z) | (y & ~z)
+            (x & z) | (y & ~z)
         }
 
         func J(_ x: UInt32, _ y: UInt32, _ z: UInt32) -> UInt32 {
-            return x ^ (y | ~z)
+            x ^ (y | ~z)
         }
 
         /* the ten basic operations FF() through III() */
@@ -115,8 +116,8 @@ public struct RIPEMD160 {
             c = ROL(c, 10)
         }
 
+        // swiftlint:disable comma
         // *** The function starts here ***
-
         var (aa, bb, cc, dd, ee) = MDbuf
         var (aaa, bbb, ccc, ddd, eee) = MDbuf
 
@@ -299,7 +300,7 @@ public struct RIPEMD160 {
         FFF(&ddd, eee, &aaa, bbb, ccc, X[ 3] , 13)
         FFF(&ccc, ddd, &eee, aaa, bbb, X[ 9] , 11)
         FFF(&bbb, ccc, &ddd, eee, aaa, X[11] , 11)
-
+        // swiftlint:disable indentation_width
         /* combine results */
         MDbuf = (MDbuf.1 &+ cc &+ ddd,
                  MDbuf.2 &+ dd &+ eee,
@@ -310,17 +311,17 @@ public struct RIPEMD160 {
 
     public mutating func update(data: Data) throws {
         try data.withUnsafeBytes { (body: UnsafeRawBufferPointer) in
-            if let bodyAddress = body.baseAddress, body.count > 0 {
+            if let bodyAddress = body.baseAddress, !body.isEmpty {
                 var ptr = bodyAddress.assumingMemoryBound(to: UInt8.self)
                 var length = data.count
                 var X = [UInt32](repeating: 0, count: 16)
 
                 // Process remaining bytes from last call:
-                if buffer.count > 0 && buffer.count + length >= 64 {
+                if !buffer.isEmpty && buffer.count + length >= 64 {
                     let amount = 64 - buffer.count
                     buffer.append(ptr, count: amount)
                     try buffer.withUnsafeBytes { (body: UnsafeRawBufferPointer) in
-                        if let bodyAddress = body.baseAddress, body.count > 0 {
+                        if let bodyAddress = body.baseAddress, !body.isEmpty {
                             let pointer = bodyAddress.assumingMemoryBound(to: Void.self)
                             _ = memcpy(&X, pointer, 64)
                         } else {
@@ -352,7 +353,7 @@ public struct RIPEMD160 {
         /* append the bit m_n == 1 */
         buffer.append(0x80)
         try buffer.withUnsafeBytes { (body: UnsafeRawBufferPointer) in
-            if let bodyAddress = body.baseAddress, body.count > 0 {
+            if let bodyAddress = body.baseAddress, !body.isEmpty {
                 let pointer = bodyAddress.assumingMemoryBound(to: Void.self)
                 _ = memcpy(&X, pointer, buffer.count)
             } else {
@@ -375,7 +376,7 @@ public struct RIPEMD160 {
 
         var data = Data(count: 20)
         try data.withUnsafeMutableBytes { (body: UnsafeMutableRawBufferPointer) in
-            if let bodyAddress = body.baseAddress, body.count > 0 {
+            if let bodyAddress = body.baseAddress, !body.isEmpty {
                 let pointer = bodyAddress.assumingMemoryBound(to: UInt32.self)
                 pointer[0] = MDbuf.0
                 pointer[1] = MDbuf.1
@@ -489,7 +490,8 @@ public extension RIPEMD160 {
     }
 
     static func hash(message: String) throws -> Data {
-        return try RIPEMD160.hash(message: message.data(using: .utf8)!)
+        guard let messageData = message.data(using: .utf8) else { throw Web3Error.dataError }
+        return try RIPEMD160.hash(message: messageData)
         //        return try RIPEMD160.hash(message: message.data(using: .utf8)!)
     }
 }
@@ -523,12 +525,12 @@ public extension RIPEMD160 {
     }
 
     static func hmac(key: Data, message: String) throws -> Data {
-        return try RIPEMD160.hmac(key: key, message: message.data(using: .utf8)!)
-        //        return try RIPEMD160.hmac(key: key, message: message.data(using: .utf8)!)
+        guard let messageData = message.data(using: .utf8) else { throw Web3Error.dataError }
+        return try RIPEMD160.hmac(key: key, message: messageData)
     }
 
     static func hmac(key: String, message: String) throws -> Data {
-        return try RIPEMD160.hmac(key: key.data(using: .utf8)!, message: message)
-        //        return try RIPEMD160.hmac(key: key.data(using: .utf8)!, message: message)
+        guard let keyData = key.data(using: .utf8) else { throw Web3Error.dataError }
+        return try RIPEMD160.hmac(key: keyData, message: message)
     }
 }

@@ -4,38 +4,36 @@
 //  Copyright © 2018 Alex Vlasov. All rights reserved.
 //
 
-import Foundation
 import BigInt
+import Foundation
 
-extension web3 {
+extension Web3 {
 
     /// The contract instance. Initialized in runtime from ABI string (that is a JSON array). In addition an existing contract address can be supplied to provide the default "to" address in all the following requests. ABI version is 2 by default and should not be changed.
-    public func contract(_ abiString: String, at: EthereumAddress? = nil, abiVersion: Int = 2) -> web3contract? {
-        return web3contract(web3: self, abiString: abiString, at: at, transactionOptions: self.transactionOptions, abiVersion: abiVersion)
+    public func contract(_ abiString: String, at: EthereumAddress? = nil, abiVersion: Int = 2) -> Web3contract? {
+        Web3contract(web3: self, abiString: abiString, at: at, transactionOptions: self.transactionOptions, abiVersion: abiVersion)
     }
 
     /// Web3 instance bound contract instance.
-    public class web3contract {
+    public class Web3contract {
         var contract: EthereumContract
-        var web3: web3
-        public var transactionOptions: TransactionOptions? = nil
+        var web3: Web3
+        public var transactionOptions: TransactionOptions?
 
         /// Initialize the bound contract instance by supplying the Web3 provider bound object, ABI, Ethereum address and some default
         /// options for further function calls. By default the contract inherits options from the web3 object. Additionally supplied "options"
         /// do override inherited ones.
-        public init?(web3 web3Instance: web3, abiString: String, at: EthereumAddress? = nil, transactionOptions: TransactionOptions? = nil, abiVersion: Int = 2) {
+        public init?(web3 web3Instance: Web3, abiString: String, at: EthereumAddress? = nil, transactionOptions: TransactionOptions? = nil, abiVersion: Int = 2) {
             self.web3 = web3Instance
             self.transactionOptions = web3.transactionOptions
-            switch abiVersion {
-            case 1:
-                print("ABIv1 bound contract is now deprecated")
-                return nil
-            case 2:
-                guard let c = EthereumContract(abiString, at: at) else {return nil}
-                contract = c
-            default:
+            guard abiVersion == 2 else {
+                fatalError("ABI version: \(abiVersion) not supported")
+            }
+
+            guard let c = EthereumContract(abiString, at: at) else {
                 return nil
             }
+            contract = c
             var mergedOptions = self.transactionOptions?.merge(transactionOptions)
             if at != nil {
                 contract.address = at
@@ -54,7 +52,7 @@ extension web3 {
             let mergedOptions = self.transactionOptions?.merge(transactionOptions)
             guard var tx = self.contract.deploy(bytecode: bytecode, parameters: parameters, extraData: extraData) else {return nil}
             tx.chainID = self.web3.provider.network?.chainID
-            let writeTX = WriteTransaction.init(transaction: tx, web3: self.web3, contract: self.contract, method: "fallback", transactionOptions: mergedOptions)
+            let writeTX = WriteTransaction(transaction: tx, web3: self.web3, contract: self.contract, method: "fallback", transactionOptions: mergedOptions)
             return writeTX
         }
 
@@ -68,7 +66,7 @@ extension web3 {
             let mergedOptions = self.transactionOptions?.merge(transactionOptions)
             guard var tx = self.contract.method(method, parameters: parameters, extraData: extraData) else {return nil}
             tx.chainID = self.web3.provider.network?.chainID
-            let writeTX = WriteTransaction.init(transaction: tx, web3: self.web3, contract: self.contract, method: method, transactionOptions: mergedOptions)
+            let writeTX = WriteTransaction(transaction: tx, web3: self.web3, contract: self.contract, method: method, transactionOptions: mergedOptions)
             return writeTX
         }
 
@@ -82,7 +80,7 @@ extension web3 {
             let mergedOptions = self.transactionOptions?.merge(transactionOptions)
             guard var tx = self.contract.method(method, parameters: parameters, extraData: extraData) else {return nil}
             tx.chainID = self.web3.provider.network?.chainID
-            let writeTX = ReadTransaction.init(transaction: tx, web3: self.web3, contract: self.contract, method: method, transactionOptions: mergedOptions)
+            let writeTX = ReadTransaction(transaction: tx, web3: self.web3, contract: self.contract, method: method, transactionOptions: mergedOptions)
             return writeTX
         }
 
@@ -96,19 +94,18 @@ extension web3 {
             let mergedOptions = self.transactionOptions?.merge(transactionOptions)
             guard var tx = self.contract.method(method, parameters: parameters, extraData: extraData) else {return nil}
             tx.chainID = self.web3.provider.network?.chainID
-            let writeTX = WriteTransaction.init(transaction: tx, web3: self.web3, contract: self.contract, method: method, transactionOptions: mergedOptions)
+            let writeTX = WriteTransaction(transaction: tx, web3: self.web3, contract: self.contract, method: method, transactionOptions: mergedOptions)
             return writeTX
         }
 
         /// Parses an EventLog object by using a description from the contract's ABI.
         public func parseEvent(_ eventLog: EventLog) -> (eventName: String?, eventData: [String: Any]?) {
-            return self.contract.parseEvent(eventLog)
+            self.contract.parseEvent(eventLog)
         }
 
         /// Creates an "EventParserProtocol" compliant object to use it for parsing particular block or transaction for events.
         public func createEventParser(_ eventName: String, filter: EventFilter?) -> EventParserProtocol? {
-            let parser = EventParser(web3: self.web3, eventName: eventName, contract: self.contract, filter: filter)
-            return parser
+            EventParser(web3: self.web3, eventName: eventName, contract: self.contract, filter: filter)
         }
     }
 }

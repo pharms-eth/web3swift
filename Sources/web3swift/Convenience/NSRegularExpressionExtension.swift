@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 extension NSRegularExpression {
     typealias GroupNamesSearchResult = (NSTextCheckingResult, NSTextCheckingResult, Int)
@@ -22,11 +23,11 @@ extension NSRegularExpression {
         }
         let m = reg.matches(in: self.pattern, options: NSRegularExpression.MatchingOptions.withTransparentBounds, range: NSRange(location: 0, length: self.pattern.utf16.count))
         for (n, g) in m.enumerated() {
-            let r = self.pattern.range(from: g.range(at: 0))
-            let gstring = String(self.pattern[r!])
+            guard let r = self.pattern.range(from: g.range(at: 0)) else { continue }
+            let gstring = String(self.pattern[r])
             let gmatch = greg.matches(in: gstring, options: NSRegularExpression.MatchingOptions.anchored, range: NSRange(location: 0, length: gstring.utf16.count))
-            if gmatch.count > 0 {
-                let r2 = gstring.range(from: gmatch[0].range(at: 1))!
+            if !gmatch.isEmpty {
+                guard let r2 = gstring.range(from: gmatch[0].range(at: 1)) else { continue }
                 groupnames[String(gstring[r2])] = (g, gmatch[0], n)
             }
 
@@ -45,29 +46,25 @@ extension NSRegularExpression {
     func rangesOfNamedCaptureGroups(match: NSTextCheckingResult) throws -> [String: Range<Int>] {
         var ranges = [String: Range<Int>]()
         for (name, (_, _, n)) in self.textCheckingResultsOfNamedCaptureGroups() {
-            ranges[name] = Range(match.range(at: n+1))
+            ranges[name] = Range(match.range(at: n + 1))
         }
         return ranges
     }
 
     private func nameForIndex(_ index: Int, from: [String: GroupNamesSearchResult]) -> String? {
-        for (name, (_, _, n)) in from {
-            if (n + 1) == index {
-                return name
-            }
-        }
-        return nil
+        let names: [String] = from.compactMap { key, value in (value.2 + 1 == index) ? key : nil }
+        return names.first
     }
 
     func captureGroups(string: String, options: NSRegularExpression.MatchingOptions = []) -> [String: String] {
-        return captureGroups(string: string, options: options, range: NSRange(location: 0, length: string.utf16.count))
+        captureGroups(string: string, options: options, range: NSRange(location: 0, length: string.utf16.count))
     }
 
     func captureGroups(string: String, options: NSRegularExpression.MatchingOptions = [], range: NSRange) -> [String: String] {
         var dict = [String: String]()
         let matchResult = matches(in: string, options: options, range: range)
         let names = self.textCheckingResultsOfNamedCaptureGroups()
-        for (_, m) in matchResult.enumerated() {
+        for m in matchResult {
             for i in (0..<m.numberOfRanges) {
                 guard let r2 = string.range(from: m.range(at: i)) else {continue}
                 let g = String(string[r2])

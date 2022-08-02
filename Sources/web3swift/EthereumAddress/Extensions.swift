@@ -24,7 +24,7 @@ extension Array where Element == UInt8 {
                 return
             }
             let v: UInt8
-            let c: UInt8 = UInt8(char.value)
+            let c = UInt8(char.value)
             switch c {
             case let c where c <= 57:
                 v = c - 48
@@ -49,7 +49,7 @@ extension Array where Element == UInt8 {
     }
 
     func toHexString() -> String {
-        return `lazy`.reduce("") {
+        `lazy`.reduce("") {
             var s = String($1, radix: 16)
             if s.count == 1 {
                 s = "0" + s

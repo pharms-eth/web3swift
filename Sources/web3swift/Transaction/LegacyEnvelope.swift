@@ -4,8 +4,8 @@
 //
 // Refactor to support EIP-2718 enveloping by Mark Loit 2022
 
-import Foundation
 import BigInt
+import Foundation
 
 public struct LegacyEnvelope: AbstractEnvelope {
     public let type: TransactionType = .legacy
@@ -60,7 +60,7 @@ public struct LegacyEnvelope: AbstractEnvelope {
 
     public var parameters: EthereumParameters {
         get {
-            return EthereumParameters(
+            EthereumParameters(
                 type: type,
                 to: to,
                 nonce: nonce,
@@ -111,17 +111,16 @@ extension LegacyEnvelope {
         self.explicitChainID = try container.decodeHexIfPresent(BigUInt.self, forKey: .chainId)
         self.nonce = try container.decodeHex(BigUInt.self, forKey: .nonce)
 
-        let toString = try? container.decode(String.self, forKey: .to)
-        switch toString {
-        case nil, "0x", "0x0":
-            self.to = EthereumAddress.contractDeploymentAddress()
-        default:
-            // the forced unwrap here is safe as we trap nil in the previous case
-            // swiftlint:disable force_unwrapping
-            guard let ethAddr = EthereumAddress(toString!) else { throw Web3Error.dataError }
-            // swiftlint:enable force_unwrapping
-            self.to = ethAddr
+        let ethAddr: EthereumAddress
+        if let toString = try? container.decode(String.self, forKey: .to), toString != "0x" && toString != "0x0" {
+            guard let eAddr = EthereumAddress(toString) else { throw Web3Error.dataError }
+            ethAddr = eAddr
+        } else {
+            ethAddr = EthereumAddress.contractDeploymentAddress()
         }
+
+        self.to = ethAddr
+
         self.value = try container.decodeHexIfPresent(BigUInt.self, forKey: .value) ?? 0
         self.gasPrice = try container.decodeHexIfPresent(BigUInt.self, forKey: .gasPrice) ?? 0
         self.gasLimit = try container.decodeHexIfPresent(BigUInt.self, forKey: .gas) ?? container.decodeHexIfPresent(BigUInt.self, forKey: .gasLimit) ?? 0
@@ -150,22 +149,21 @@ extension LegacyEnvelope {
         guard RlpKey.allCases.count == rlpItem.count else { return nil }
 
         // we've validated the item count, so rlpItem[key] is guaranteed to return something not nil
-        // swiftlint:disable force_unwrapping
-        guard let nonceData = rlpItem[RlpKey.nonce.rawValue]!.data else { return nil }
-        guard let gasPriceData = rlpItem[RlpKey.gasPrice.rawValue]!.data else { return nil }
-        guard let gasLimitData = rlpItem[RlpKey.gasLimit.rawValue]!.data else { return nil }
-        guard let valueData = rlpItem[RlpKey.amount.rawValue]!.data else { return nil }
-        guard let transactionData = rlpItem[RlpKey.data.rawValue]!.data else { return nil }
-        guard let vData = rlpItem[RlpKey.sig_v.rawValue]!.data else { return nil }
-        guard let rData = rlpItem[RlpKey.sig_r.rawValue]!.data else { return nil }
-        guard let sData = rlpItem[RlpKey.sig_s.rawValue]!.data else { return nil }
+        guard let nonceData = rlpItem[RlpKey.nonce.rawValue]?.data else { return nil }
+        guard let gasPriceData = rlpItem[RlpKey.gasPrice.rawValue]?.data else { return nil }
+        guard let gasLimitData = rlpItem[RlpKey.gasLimit.rawValue]?.data else { return nil }
+        guard let valueData = rlpItem[RlpKey.amount.rawValue]?.data else { return nil }
+        guard let transactionData = rlpItem[RlpKey.data.rawValue]?.data else { return nil }
+        guard let vData = rlpItem[RlpKey.sig_v.rawValue]?.data else { return nil }
+        guard let rData = rlpItem[RlpKey.sig_r.rawValue]?.data else { return nil }
+        guard let sData = rlpItem[RlpKey.sig_s.rawValue]?.data else { return nil }
+        guard let destinationData = rlpItem[RlpKey.destination.rawValue]?.content else { return nil }
 
-        switch rlpItem[RlpKey.destination.rawValue]!.content {
-        // swiftlint:enable force_unwrapping
+        switch destinationData {
         case .noItem:
             self.to = EthereumAddress.contractDeploymentAddress()
         case .data(let addressData):
-            if addressData.count == 0 {
+            if addressData.isEmpty {
                 self.to = EthereumAddress.contractDeploymentAddress()
             } else if addressData.count == 20 {
                 guard let addr = EthereumAddress(addressData) else { return nil }
@@ -185,9 +183,7 @@ extension LegacyEnvelope {
         self.s = BigUInt(sData)
     }
 
-    public init(to: EthereumAddress, nonce: BigUInt? = nil,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0,
-                parameters: EthereumParameters? = nil) {
+    public init(to: EthereumAddress, nonce: BigUInt? = nil, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0, parameters: EthereumParameters? = nil) {
         self.to = to
         self.nonce = nonce ?? parameters?.nonce ?? 0
         self.explicitChainID = parameters?.chainID // Legacy can have a nil ChainID
@@ -201,10 +197,7 @@ extension LegacyEnvelope {
     }
 
     // memberwise
-    public init(to: EthereumAddress, nonce: BigUInt = 0,
-                chainID: BigUInt? = nil, value: BigUInt = 0, data: Data,
-                gasPrice: BigUInt = 0, gasLimit: BigUInt = 0,
-                v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
+    public init(to: EthereumAddress, nonce: BigUInt = 0, chainID: BigUInt? = nil, value: BigUInt = 0, data: Data, gasPrice: BigUInt = 0, gasLimit: BigUInt = 0, v: BigUInt = 1, r: BigUInt = 0, s: BigUInt = 0) {
         self.to = to
         self.nonce = nonce
         self.explicitChainID = chainID
@@ -222,16 +215,20 @@ extension LegacyEnvelope {
         self.nonce = options.resolveNonce(self.nonce)
         self.gasPrice = options.resolveGasPrice(self.gasPrice)
         self.gasLimit = options.resolveGasLimit(self.gasLimit)
-        // swiftlint:disable force_unwrapping
-        if options.value != nil { self.value = options.value! }
-        if options.to != nil { self.to = options.to! }
-        // swiftlint:enable force_unwrapping
+
+        if let optValue = options.value {
+            self.value = optValue
+        }
+        if let toValue = options.to {
+            self.to = toValue
+        }
     }
 
     public func encode(for type: EncodeType = .transaction) -> Data? {
         let fields: [AnyObject]
         switch type {
-        case .transaction: fields = [self.nonce, self.gasPrice, self.gasLimit, self.to.addressData, self.value, self.data, v, r, s] as [AnyObject]
+        case .transaction:
+            fields = [self.nonce, self.gasPrice, self.gasLimit, self.to.addressData, self.value, self.data, v, r, s] as [AnyObject]
         case .signature:
             if let chainID = self.chainID, chainID != 0 {
                 fields = [self.nonce, self.gasPrice, self.gasLimit, self.to.addressData, self.value, self.data, chainID, BigUInt(0), BigUInt(0)] as [AnyObject]

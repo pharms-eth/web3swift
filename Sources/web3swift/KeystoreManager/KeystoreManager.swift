@@ -7,49 +7,46 @@
 import Foundation
 
 public class KeystoreManager: AbstractKeystore {
-    public var isHDKeystore: Bool = false
+    public var isHDKeystore = false
 
     public var addresses: [EthereumAddress]? {
-        get {
-            var toReturn = [EthereumAddress]()
-            for keystore in _keystores {
-                guard let key = keystore.addresses?.first else {
-                    continue
-                }
-                if key.isValid {
-                    toReturn.append(key)
-                }
+        var toReturn = [EthereumAddress]()
+        for keystore in _keystores {
+            guard let key = keystore.addresses?.first else {
+                continue
             }
-            for keystore in _bip32keystores {
-                guard let allAddresses = keystore.addresses else {
-                    continue
-                }
-                for addr in allAddresses {
-                    if addr.isValid {
-                        toReturn.append(addr)
-                    }
-                }
+            if key.isValid {
+                toReturn.append(key)
             }
-            for keystore in _plainKeystores {
-                guard let key = keystore.addresses?.first else {
-                    continue
-                }
-                if key.isValid {
-                    toReturn.append(key)
-                }
-            }
-            return toReturn
         }
+        for keystore in _bip32keystores {
+            guard let allAddresses = keystore.addresses else {
+                continue
+            }
+
+            let validAddr = allAddresses.compactMap { addr in addr.isValid ? addr : nil }
+            toReturn.append(contentsOf: validAddr)
+
+        }
+        for keystore in _plainKeystores {
+            guard let key = keystore.addresses?.first else {
+                continue
+            }
+            if key.isValid {
+                toReturn.append(key)
+            }
+        }
+        return toReturn
     }
 
     public func UNSAFE_getPrivateKeyData(password: String, account: EthereumAddress) throws -> Data {
         guard let keystore = self.walletForAddress(account) else {throw AbstractKeystoreError.invalidAccountError}
-                    return try keystore.UNSAFE_getPrivateKeyData(password: password, account: account)
-                }
+        return try keystore.UNSAFE_getPrivateKeyData(password: password, account: account)
+    }
 
     public static var allManagers = [KeystoreManager]()
     public static var defaultManager: KeystoreManager? {
-        if KeystoreManager.allManagers.count == 0 {
+        if KeystoreManager.allManagers.isEmpty {
             return nil
         }
         return KeystoreManager.allManagers[0]
@@ -99,21 +96,15 @@ public class KeystoreManager: AbstractKeystore {
     var _plainKeystores: [PlainKeystore] = [PlainKeystore]()
 
     public var keystores: [EthereumKeystoreV3] {
-        get {
-            return self._keystores
-        }
+        self._keystores
     }
 
     public var bip32keystores: [BIP32Keystore] {
-        get {
-            return self._bip32keystores
-        }
+        self._bip32keystores
     }
 
     public var plainKeystores: [PlainKeystore] {
-        get {
-            return self._plainKeystores
-        }
+        self._plainKeystores
     }
 
     public init(_ keystores: [EthereumKeystoreV3]) {
@@ -135,32 +126,32 @@ public class KeystoreManager: AbstractKeystore {
     }
 
     private init?(_ path: String, scanForHDwallets: Bool = false, suffix: String? = nil) throws {
-        if (scanForHDwallets) {
+        if scanForHDwallets {
             self.isHDKeystore = true
         }
         self.path = path
         let fileManager = FileManager.default
         var isDir: ObjCBool = false
         var exists = fileManager.fileExists(atPath: path, isDirectory: &isDir)
-        if (!exists && !isDir.boolValue) {
+        if !exists && !isDir.boolValue {
             try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true, attributes: nil)
             exists = fileManager.fileExists(atPath: path, isDirectory: &isDir)
         }
-        if (!isDir.boolValue) {
+        if !isDir.boolValue {
             return nil
         }
         let allFiles = try fileManager.contentsOfDirectory(atPath: path)
-        if (suffix != nil) {
-            for file in allFiles where file.hasSuffix(suffix!) {
+        if let suffix = suffix {
+            for file in allFiles where file.hasSuffix(suffix) {
                 var filePath = path
-                if (!path.hasSuffix("/")) {
+                if !path.hasSuffix("/") {
                     filePath = path + "/"
                 }
-                filePath = filePath + file
+                filePath += file
                 guard let content = fileManager.contents(atPath: filePath) else {
                     continue
                 }
-                if (!scanForHDwallets) {
+                if !scanForHDwallets {
                     guard let keystore = EthereumKeystoreV3(content) else {
                         continue
                     }
@@ -175,14 +166,14 @@ public class KeystoreManager: AbstractKeystore {
         } else {
             for file in allFiles {
                 var filePath = path
-                if (!path.hasSuffix("/")) {
+                if !path.hasSuffix("/") {
                     filePath = path + "/"
                 }
-                filePath = filePath + file
+                filePath += file
                 guard let content = fileManager.contents(atPath: filePath) else {
                     continue
                 }
-                if (!scanForHDwallets) {
+                if !scanForHDwallets {
                     guard let keystore = EthereumKeystoreV3(content) else {
                         continue
                     }
