@@ -71,7 +71,7 @@ extension String {
         self.hasPrefix("0x")
     }
 
-    func stripHexPrefix() -> String {
+    public func stripHexPrefix() -> String {
         if self.hasPrefix("0x") {
             let indexStart = self.index(self.startIndex, offsetBy: 2)
             return String(self[indexStart...])

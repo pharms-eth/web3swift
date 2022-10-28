@@ -40,7 +40,7 @@ extension Web3.Utils {
         case Microether
         case Finney
 
-        var decimals: Int {
+        public var decimals: Int {
             switch self {
             case .eth:
                 return 18
